@@ -52,7 +52,7 @@ RAW PAIRED-END FASTQ   (R1 = UMI + primer + barcode, R2 = genomic DNA / transcri
 | [scripts/](scripts/) | one script per stage, numbered as in `FILE_FORMATS.md` |
 | [FILE_FORMATS.md](FILE_FORMATS.md) | every input and output file of every stage: name pattern, column layout, real first lines |
 | [LAB_NOTEBOOK.md](LAB_NOTEBOOK.md) | working notebook for the two new stages: the reasoning, the toy tests case by case, and the real-data measurements |
-| [figures/](figures/) | the six figures of those real-data runs, embedded in the notebook |
+| [figures/](figures/) | the seven figures of those real-data runs, embedded in the notebook |
 | [example_data/](example_data/) | small real slice + `run_example.sh` (runs stages 03 → 07 in ~2 min) |
 
 ### Scripts

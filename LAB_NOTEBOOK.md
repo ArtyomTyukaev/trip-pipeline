@@ -5,7 +5,7 @@
 > (`/home/projects/ulitsky/...`), and the two new stages are referred to by their original
 > workspace names — `NewScripts/filterMappings_TTAA/filterMappings_TTAA.R` is stage 04 of this
 > repository (`scripts/04_filterMappings_TTAA.R`) and `NewScripts/normalizeTRIP_MM/normalizeTRIP_v2_MM.R`
-> is stage 07 (`scripts/07_normalizeTRIP_v2_MM.R`). The six figures are included, in
+> is stage 07 (`scripts/07_normalizeTRIP_v2_MM.R`). The seven figures are included, in
 > [figures/](figures/).
 
 ## 26 July 2026 – Stage 3: TTAA filter in `filterMappings` (the piggyBac site)
@@ -562,25 +562,34 @@ sharing the same Map and Norm:
 
 ![Percentage gain per library in barcodes, norm reads and exp reads](figures/mm_fig1_pct_gain.png)
 
-**Figure 2** — pool totals: exact vs oneMismatch:
+**Figure 2** — pool totals: without the flag (exact) vs with the flag (allow 1 mismatch):
 
-![Pool totals, exact versus oneMismatch, for barcodes, norm reads and exp reads](figures/mm_fig2_totals.png)
+![Pool totals, without the flag versus with the flag, for barcodes, norm reads and exp reads](figures/mm_fig2_totals.png)
 
-**Figure 3** — exp per barcode: exact vs oneMismatch (Exp_5ss_noP_rep1_S99):
+**Figure 3** — exp per barcode for the barcodes that ALREADY EXISTED: without the flag
+(exact, 0 substitutions) on X vs with the flag (allow 1 mismatch) on Y, Exp_5ss_noP_rep1_S99:
 
-![Per-barcode exp reads, exact versus oneMismatch, with rescued-only barcodes on the x=0 axis](figures/mm_fig3_scatter_exp.png)
+![Per-barcode exp reads for barcodes present in both outputs, exact on X versus allow-1-mismatch on Y](figures/mm_fig3_scatter_existing.png)
 
-> Fig 3: the blue points lie almost on the diagonal (for barcodes that already existed, exp grew a
-> little), the orange ones lie along the `x=0` axis – these are the **new** barcodes (absent
-> altogether in exact, appearing under `oneMismatch` thanks to the rescue).
+> Fig 3 (barcodes that were there and stayed): most points lie on the diagonal – exp did not change;
+> points above the diagonal – the rescue added reads; the vertical band at X=0 are pre-existing
+> barcodes that had `exp=0` in exact mode (with no 1-nt mismatches allowed) and acquired a non-zero
+> exp with the flag.
+
+**Figure 4** — distribution of exp for the NEWLY APPEARED barcodes (present only with the
+allow-1-mismatch flag), Exp_5ss_noP_rep1_S99:
+
+![Histogram of exp reads for the 728 barcodes that appear only under allow-1-mismatch matching](figures/mm_fig4_newbc_exp_hist.png)
+
+> Fig 4 (the 728 "new" barcodes that had no row in the exact table): X is log10(1+exp) in the table
+> with the flag, Y is how many such barcodes there are. The large bar at exp=0 (~410 of 728) means
+> most of the new barcodes were pulled in by norm, not by exp (they have no exp reads at all). The
+> rest gained a little exp as well.
 
 **Caveats / what to check next:**
 - **The `+113 %` for PolyAminus** – it is worth eyeballing that these really are 1-nt typos rather
-  than "over-rescue" of low-frequency foreign barcodes: for a real typo the count should be far below
+  than over-rescue of low-frequency foreign barcodes: for a real typo the count should be far below
   the count of the genuine barcode it attaches to. Worth a spot check before trusting shallow libraries.
-- **Ties** were not logged separately in these runs (the script simply discards them). If needed, a
-  counter of ambiguity-dropped reads can be added.
-- The exact-vs-`oneMismatch` comparison is internally valid: the same script, differing exactly by the flag.
 
 **Operational notes:**
 - Resources: `bsub -q short -n 1 -R "rusage[mem=8000]"` with headroom (actually ~1.1 GB).

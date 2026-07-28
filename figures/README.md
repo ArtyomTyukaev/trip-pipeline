@@ -1,6 +1,6 @@
 # Figures
 
-The six figures referenced from [../LAB_NOTEBOOK.md](../LAB_NOTEBOOK.md). Both sets were produced
+The seven figures referenced from [../LAB_NOTEBOOK.md](../LAB_NOTEBOOK.md). Both sets were produced
 by an `aggregate_and_plot.R` script that parses the per-job logs into a `summary.csv` and plots it;
 the underlying `summary.csv` tables are not in this repository yet.
 
@@ -17,8 +17,9 @@ the underlying `summary.csv` tables are not in this repository yet.
 | File | What it shows |
 |---|---|
 | `mm_fig1_pct_gain.png` | per job, % gain in barcodes, norm reads and exp reads |
-| `mm_fig2_totals.png` | pool totals, exact vs `oneMismatch` |
-| `mm_fig3_scatter_exp.png` | per-barcode exp reads, exact vs `oneMismatch` (`Exp_5ss_noP_rep1_S99`); the points along `x=0` are barcodes that exist only once 1-nt neighbours are rescued |
+| `mm_fig2_totals.png` | pool totals, without the flag (exact) vs with it (allow 1 mismatch) |
+| `mm_fig3_scatter_existing.png` | per-barcode exp reads for barcodes present in **both** outputs (`Exp_5ss_noP_rep1_S99`): exact on X, allow-1-mismatch on Y; above the diagonal = reads gained, the band at `x=0` = pre-existing barcodes that had `exp=0` in exact mode |
+| `mm_fig4_newbc_exp_hist.png` | exp distribution of the 728 barcodes that appear **only** with the flag (same sample); the bar at `exp=0` (~410) are barcodes pulled in by rescued norm reads alone |
 
 A note on how these were rendered: direct PNG devices in R (`ragg`, `cairo`) crash with SIGILL /
 exit 132 on some cluster nodes, so the plots are drawn to PDF and converted with Ghostscript
