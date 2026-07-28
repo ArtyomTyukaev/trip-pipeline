@@ -5,8 +5,8 @@
 > (`/home/projects/ulitsky/...`), and the two new stages are referred to by their original
 > workspace names — `NewScripts/filterMappings_TTAA/filterMappings_TTAA.R` is stage 04 of this
 > repository (`scripts/04_filterMappings_TTAA.R`) and `NewScripts/normalizeTRIP_MM/normalizeTRIP_v2_MM.R`
-> is stage 07 (`scripts/07_normalizeTRIP_v2_MM.R`). The figures referenced below live in the lab
-> workspace and are not part of this repository.
+> is stage 07 (`scripts/07_normalizeTRIP_v2_MM.R`). The six figures are included, in
+> [figures/](figures/).
 
 ## 26 July 2026 – Stage 3: TTAA filter in `filterMappings` (the piggyBac site)
 
@@ -224,13 +224,16 @@ expected noise / mapping artefacts, not the main signal. Exactly the behaviour t
 for (see "The star case 10a/10b" above).
 
 **Figure 1** — % of dropped barcodes and reads per library:
-`NewScripts/filterMappings_TTAA/analysis/fig1_pct_dropped.png`
+
+![% of dropped barcodes and reads per library, standard filter vs TTAA filter](figures/ttaa_fig1_pct_dropped.png)
 
 **Figure 2** — TTAA: barcodes vs reads:
-`NewScripts/filterMappings_TTAA/analysis/fig2_ttaa_barcodes_vs_reads.png`
+
+![TTAA filter: fraction of barcodes dropped against fraction of reads dropped](figures/ttaa_fig2_barcodes_vs_reads.png)
 
 **Figure 3** — pool totals:
-`NewScripts/filterMappings_TTAA/analysis/fig3_totals.png`
+
+![Pool totals: input, kept and dropped positions and reads](figures/ttaa_fig3_totals.png)
 
 > Full numbers for all columns: `NewScripts/filterMappings_TTAA/analysis/summary.csv`.
 
@@ -556,13 +559,16 @@ sharing the same Map and Norm:
   are picked up, their norm reaches the `minNormReads = 2` threshold and they appear in the output table.
 
 **Figure 1** — % gain per library (barcodes/norm/exp):
-`NewScripts/normalizeTRIP_MM/analysis/fig1_pct_gain.png`
+
+![Percentage gain per library in barcodes, norm reads and exp reads](figures/mm_fig1_pct_gain.png)
 
 **Figure 2** — pool totals: exact vs oneMismatch:
-`NewScripts/normalizeTRIP_MM/analysis/fig2_totals.png`
+
+![Pool totals, exact versus oneMismatch, for barcodes, norm reads and exp reads](figures/mm_fig2_totals.png)
 
 **Figure 3** — exp per barcode: exact vs oneMismatch (Exp_5ss_noP_rep1_S99):
-`NewScripts/normalizeTRIP_MM/analysis/fig3_scatter_exp.png`
+
+![Per-barcode exp reads, exact versus oneMismatch, with rescued-only barcodes on the x=0 axis](figures/mm_fig3_scatter_exp.png)
 
 > Fig 3: the blue points lie almost on the diagonal (for barcodes that already existed, exp grew a
 > little), the orange ones lie along the `x=0` axis – these are the **new** barcodes (absent
