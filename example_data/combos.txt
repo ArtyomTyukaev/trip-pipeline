@@ -1,0 +1,1 @@
+5ss_noP.txt	Norm_5ss_noP_rep2_S92	Exp_total_5ss_noP_pool2_rep2_S80	18	FALSE

@@ -1,0 +1,2 @@
+Map_5ss_noP_pool1_rep2_S166	5ss_noP
+Map_CPA_noP_pool1_rep2_S164	CPA_noP

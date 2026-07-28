@@ -1,0 +1,23 @@
+# pipeline outputs of the example run
+example_data/out/
+
+# raw / heavy sequencing data — never commit these
+*.fastq
+*.fastq.gz
+*.bam
+*.bam.bai
+*.sam
+*.bb
+*.bw
+
+# large reference files (see README: hg38_ttaa.bed is 627 MB, hg38.fa ~3 GB)
+hg38_ttaa.bed
+hg38.fa
+*.chrom.sizes
+
+# logs and scratch
+*.log
+*.err
+.Rhistory
+.RData
+.DS_Store
