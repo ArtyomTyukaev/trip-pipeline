@@ -51,6 +51,7 @@ RAW PAIRED-END FASTQ   (R1 = UMI + primer + barcode, R2 = genomic DNA / transcri
 |---|---|
 | [scripts/](scripts/) | one script per stage, numbered as in `FILE_FORMATS.md` |
 | [FILE_FORMATS.md](FILE_FORMATS.md) | every input and output file of every stage: name pattern, column layout, real first lines |
+| [LAB_NOTEBOOK.md](LAB_NOTEBOOK.md) | working notebook for the two new stages: the reasoning, the toy tests case by case, and the real-data measurements |
 | [example_data/](example_data/) | small real slice + `run_example.sh` (runs stages 03 → 07 in ~2 min) |
 
 ### Scripts
@@ -121,8 +122,8 @@ until then the adapter keeps the chain faithful to the production files.
 
 ## Plan for this repository
 
-Written so far: the ten pipeline scripts, the file-format reference, and a runnable example.
-Still to add:
+Written so far: the ten pipeline scripts, the file-format reference, the lab notebook covering the
+two new stages, and a runnable example. Still to add:
 
 - **PIPELINE.md** — per-stage narrative: what each step does biologically, why the thresholds
   are what they are, and how the two branches (position vs counts) merge.
@@ -133,8 +134,10 @@ Still to add:
   with it in column 7), and the `exp.log10` ambiguity (log10 expression for single-exon
   reporters, but a 0–1 splicing efficiency in the IntronTRIP branch).
 - **Tests** — the toy datasets and oracle checks for the two new stages, including the proof
-  that flag-off output is byte-identical to the original.
-- **TTAA analysis** — the real-data characterisation behind the 29 % / 7.6 % numbers.
+  that flag-off output is byte-identical to the original. The notebook describes them case by
+  case; the datasets and drivers themselves are not here yet.
+- **Analysis bundles** — the `summary.csv` tables and figures behind the numbers quoted in the
+  notebook (TTAA: 29 % of barcodes / 7.6 % of reads; `oneMismatch`: +2.6 % barcodes, +12 % exp reads).
 - **Reference bundle** — how to build or fetch `hg38_ttaa.bed`, MANE, gencode non-coding,
   repeats, ChromHMM and the K562 host-expression table, so stages 08–10 become runnable too.
 - **Thresholds appendix** — the magic numbers in one table (18-nt barcode, alignment length
