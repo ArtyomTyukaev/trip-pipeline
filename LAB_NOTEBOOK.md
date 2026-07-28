@@ -1,21 +1,10 @@
 # Lab Notebook
 
-> **Condensed English version** of the working lab notebook kept with this project. It carries the
-> goals, the design decisions and their rationale, the measured results and the caveats — but not the
-> line-level implementation detail (coordinate arithmetic, source-line references, raw toy-test
-> inputs, case-by-case walkthroughs). For those, see the lab journal in Google Slides.
->
-> Two naming notes: paths point at the lab file system (`/home/projects/ulitsky/...`), and the two new
-> stages are referred to by their original workspace names —
-> `NewScripts/filterMappings_TTAA/filterMappings_TTAA.R` is stage 04 of this repository
-> (`scripts/04_filterMappings_TTAA.R`) and `NewScripts/normalizeTRIP_MM/normalizeTRIP_v2_MM.R` is
-> stage 07 (`scripts/07_normalizeTRIP_v2_MM.R`). The figures are in [figures/](figures/).
 
 ## 26 July 2026 — Stage 3: TTAA filter in `filterMappings` (the piggyBac site)
 
 **Goal:** at stage 3, keep only barcodes whose integration sits in a **TTAA** — the target site of the
 piggyBac transposase.
-**Status:** done in a separate copy, the original untouched. Run on a toy dataset — every case passes.
 
 ### What was created (everything in `NewScripts/filterMappings_TTAA/`)
 
@@ -25,13 +14,11 @@ piggyBac transposase.
 | `hg38_ttaa.bed` | a copy of the TTAA reference (627 MB, 19,784,878 sites) |
 | `toy_test/` | toy dataset + driver `run_toy_test.sh` + `summarize.R` |
 
+`hg38_ttaa.bed` was copied from `/home/projects/ulitsky/igoru/data/human/hg38_ttaa.bed`
 ### The rule
 
 The integration position recorded upstream by `analyzeTRIPMapping` is compared against the expected
-TTAA coordinate, which sits at a **strand-dependent offset** from it. The test is an **exact** match
-against the TTAA reference — no window, so a position shifted by even 1 bp is dropped. TTAA is its own
-reverse complement, so a `+`-strand-only reference is complete and nothing has to be
-reverse-complemented.
+TTAA coordinate, which sits at a **strand-dependent offset** from it. The test is an **exact** match against the TTAA reference.
 
 > The offset itself, why it is asymmetric between the strands, and the worked examples are in the lab
 > journal in Google Slides.
@@ -66,7 +53,7 @@ Two runs (baseline vs filtered), the result checked against a hand-written oracl
 
 Baseline kept 10/12, the TTAA filter kept 4/12. Three of the cases are deliberate traps — a TTAA
 present but on the wrong strand, an off-by-one TTAA, and a position that the *proximity* filter (not
-the TTAA one) removes; the per-case coordinates are worked through in the lab journal.
+the TTAA one) removes.
 
 To run it and eyeball the two outputs (`RESULT_without_ttaa.bed` vs `RESULT_with_ttaa.bed`):
 `bash NewScripts/filterMappings_TTAA/toy_test/run_toy_test.sh`.
@@ -81,14 +68,14 @@ Two positions 5 bp apart, with barcodes differing by one letter:
 | **CASE10B** | 20 (weak) | **yes** | a real TTAA integration |
 
 The old proximity filter treats a weak position next to a nearly identical strong one as its "echo"
-and drops the weak one; strong positions are processed first and become the anchors everything else is
+and drops the weak one, strong positions are processed first and become the anchors everything else is
 compared against.
 
 - **Without the TTAA filter:** the strong artefact is processed first, survives, becomes an anchor, and
   the weak genuine position next to it is dropped as an echo. The artefact stays, the real
   integration is lost.
 - **With the TTAA filter:** the artefact is not on a TTAA, so it is dropped immediately and never
-  becomes an anchor; nothing suppresses the genuine position and it survives.
+  becomes an anchor, nothing suppresses the genuine position and it survives.
 
 This only works because the TTAA check runs **before** the proximity block — early enough that a
 non-TTAA position cannot become an anchor. Put it later and the artefact would crush the real position
@@ -162,22 +149,16 @@ than signal. Exactly the behaviour the filter was built for (see the star case a
 - **baseline == the original.** Without the flag, the positions kept by `filterMappings_TTAA.R` matched
   the original `filterMappings.R` exactly (diff = 0) — the TTAA branch breaks nothing on the ordinary path.
 - **`+`/`−` are dropped in a balanced way** in every library, confirming the minus-strand offset.
-- **The comparison is internally valid:** both modes are the same script, differing only by the flag,
-  so the difference in numbers is the pure effect of the filter.
+
 
 ### Three bugs from the first run (fixed)
 
 1. **run1 uses an older format** in which barcodes carry no `:count` suffix, so the script failed while
-   parsing. run1 was excluded from the analysis — an incompatible format, not a filter bug.
-2. **Read counts were taken from a truncated file** and came out as `NA`; fixed by reading them from the
-   full positions table instead.
-3. **PNG rendering crashed (exit 132 / SIGILL)** on some LSF nodes. Workaround: render to PDF, then
-   convert to PNG with Ghostscript.
 
 ### Caveat (interpreting per-library numbers)
 
 - The old run3 libraries (S79–S82) drop **30–45 %** of barcodes — there really are more non-TTAA
-  positions there (older protocol, worse quality); treat that as the upper bound.
+  positions there (older protocol, worse quality), treat that as the upper bound.
 - The `Map_*_noP` libraries drop **23–31 %**, closer to the typical artefact fraction.
 - So the pooled 29 % is an average of dirty old and cleaner new libraries — when interpreting a
   specific library, look at its own row.
@@ -214,15 +195,15 @@ plus a `.bed` of the same name.
 - Reads **Exp** and sums counts per barcode.
 - Keeps only **single-position** barcodes — truncating to `effLength` could otherwise glue two different
   barcodes onto the same key.
-- Assembles the table; a barcode **missing from Exp** still gets a row, with `exp = 0`.
+- Assembles the table, a barcode **missing from Exp** still gets a row, with `exp = 0`.
 
 **The asymmetry that follows:** Norm **must** match Map (otherwise the barcode is discarded), Exp does
 **not** — absence from Exp yields `exp = 0`.
 
 ### A mini example
 
-- `ACGTAC` is in Map + Norm + Exp → row `norm=12, exp=200`;
-- `GGAATT` is in Map + Norm but absent from Exp → the row still exists, with `exp=0` (that asymmetry);
+- `ACGTAC` is in Map + Norm + Exp → row `norm=12, exp=200`,
+- `GGAATT` is in Map + Norm but absent from Exp → the row still exists, with `exp=0` (that asymmetry),
 - `CCCCCC` is not in Map → discarded, it has no position.
 
 ### How we handled mismatches (`normalizeTRIP_v2_MM.R`)
@@ -233,17 +214,17 @@ up by the real map barcode.
 **Solution:** the tolerance is **hard-fixed at 1 substitution**, switched on by the `oneMismatch` flag
 (without the flag — the original). The rules:
 
-- the reference is the **genuine Map barcodes** (they carry the position); Norm/Exp reads within 1 nt
-  are attributed to them and the counts summed;
-- an **exact match wins** over any 1-nt one;
+- the reference is the **genuine Map barcodes** (they carry the position), Norm/Exp reads within 1 nt
+  are attributed to them and the counts summed,
+- an **exact match wins** over any 1-nt one,
 - a **tie is discarded** — a read sitting 1 nt from two or more different genuine barcodes is
-  ambiguous, and assigning it at random would add reads to the wrong integration;
+  ambiguous, and assigning it at random would add reads to the wrong integration,
 - a read that matches nothing within 1 nt is dropped as before: it has no position.
 
 **Why 1 and not 2+.** The typo dictionary is built for all genuine barcodes at once (up to ~10⁵–10⁶),
 and its size grows fast: ~25× at two substitutions, hundreds of times at three.
 
-**Norm and Exp are matched independently.** The dictionary comes only from Map barcodes; Norm and Exp
+**Norm and Exp are matched independently.** The dictionary comes only from Map barcodes, Norm and Exp
 are each looked up in it and are never compared with or merged into each other. So a read 2 nt from
 every genuine barcode is not rescued even if it is 1 nt from some Norm or Exp barcode — there are no
 Exp → Norm → Map chains.
@@ -255,7 +236,7 @@ the output matched the real `normalizeTRIP_v2.R` byte for byte.
 
 | File | What |
 |---|---|
-| `normalizeTRIP_v2_MM.R` | a copy of `normalizeTRIP_v2.R` + optional `NEW BLOCK (MM)` sections; identical to the original without the flag |
+| `normalizeTRIP_v2_MM.R` | a copy of `normalizeTRIP_v2.R` + optional `NEW BLOCK (MM)` sections, identical to the original without the flag |
 | `toy_test/` | toy dataset + `run_toy_test.sh` + `summarize.R` (hand-written oracle) |
 
 #### The method — a "neighbour hash"
@@ -285,8 +266,8 @@ hand-written oracle → **ALL PASS**.
 | `AAAAAAAA` | 12 | **19** | 200 | **250** | typos picked up: norm +4+3, exp +50 |
 | `CCCCCCCC` | 8 | 8 | 45 | 45 | exact match only |
 | `GGGGGGGG` | 6 | 6 | 0 | 0 | absent from Exp → `exp=0` (fallback) |
-| `TATATAAA` | 10 | 10 | 100 | 100 | exact; did not take the ambiguous read |
-| `TATATATT` | 9 | 9 | 90 | 90 | exact; did not take it either |
+| `TATATAAA` | 10 | 10 | 100 | 100 | exact, did not take the ambiguous read |
+| `TATATATT` | 9 | 9 | 90 | 90 | exact, did not take it either |
 
 The 2-nt neighbour and the read matching nobody are dropped (no position), and so is the ambiguous
 one — correctly, since it is 1 nt from two genuine barcodes. The variant dictionary came out at exactly
@@ -294,7 +275,7 @@ the 121 keys predicted by hand, which confirms both the variant generation and t
 
 #### Notes for the future
 
-- **Speed.** The variant generation is loop-based; acceptable for real ~10⁵–10⁶ barcodes at 1 nt, and
+- **Speed.** The variant generation is loop-based, acceptable for real ~10⁵–10⁶ barcodes at 1 nt, and
   the fix if it ever gets slow is to vectorise it, not to raise the mismatch count.
 - **The `exp=0` fallback was not changed** — mismatch tolerance is orthogonal to the separate question
   of whether a barcode should be required in Exp at all.
@@ -309,7 +290,7 @@ the original) and with **`oneMismatch`**. The selection covers the constructs 5s
 CPA and the RNA libraries Exp / PolyA / total / PolyAminus / nonspliced. Harness and results in
 `NewScripts/normalizeTRIP_MM/analysis/`.
 
-**Feasibility:** the neighbour dictionary for 44,176 genuine barcodes holds 2,412,442 keys; one run
+**Feasibility:** the neighbour dictionary for 44,176 genuine barcodes holds 2,412,442 keys, one run
 takes ~1.5–2 min at ~1.1 GB peak memory. Unproblematic as ordinary cluster jobs.
 
 **Headline result (pool of 16 jobs):**
@@ -326,7 +307,7 @@ takes ~1.5–2 min at ~1.1 GB peak memory. Unproblematic as ordinary cluster job
 > or **+5.2–7.9 %** (small promoter sets), and **+4.0–5.8 %** norm reads. The exp reads differ across
 > all 16 jobs, so the pooled **+12 %** is legitimate.
 
-**Gain in exp reads per job** (descending; "+% bc" and "new bc" repeat for jobs sharing Map and Norm):
+**Gain in exp reads per job** (descending, "+% bc" and "new bc" repeat for jobs sharing Map and Norm):
 
 | Job | exp exact → oneMismatch | +% exp | +% bc | new bc |
 |---|---:|---:|---:|---:|
@@ -360,7 +341,7 @@ takes ~1.5–2 min at ~1.1 GB peak memory. Unproblematic as ordinary cluster job
   counted because the barcode failed `norm ≥ 2` (there is no read-count filter on exp at all). The
   record holder `PolyAminus_5ss S91` (+113 %) is **97 %** new-barcode exp.
 - **The "new" barcodes (84–800 per job) are not new to Map.** They are genuine barcodes already in Map
-  that exact mode kept out of the table because they had fewer than 2 exact norm reads; once 1-nt
+  that exact mode kept out of the table because they had fewer than 2 exact norm reads, once 1-nt
   neighbours are added their norm clears `minNormReads = 2` and they appear.
 
 **Figure 1** — % gain per library (barcodes/norm/exp):
@@ -376,7 +357,7 @@ Y (Exp_5ss_noP_rep1_S99):
 
 ![Per-barcode exp reads for barcodes present in both outputs, exact on X versus allow-1-mismatch on Y](figures/mm_fig3_scatter_existing.png)
 
-> Most points lie on the diagonal (exp unchanged); points above it gained reads. The vertical band at
+> Most points lie on the diagonal (exp unchanged), points above it gained reads. The vertical band at
 > X=0 are pre-existing barcodes that had `exp=0` in exact mode and acquired a non-zero exp with the flag.
 
 **Figure 4** — exp distribution of the newly appeared barcodes (present only with the flag, same sample):
@@ -413,13 +394,6 @@ Y (Exp_5ss_noP_rep1_S99):
 - **All output invariants hold:** every barcode is a genuine Map barcode, all are single-position, no
   barcode is lost relative to the no-flag run, and both norm and exp are monotonically ≥ their no-flag
   values for every shared barcode (no reads move to the wrong integration).
-- Verdict: the code and the numbers are correct; the only correction was to the **interpretation** of
+- Verdict: the code and the numbers are correct, the only correction was to the **interpretation** of
   the exp gain (see "What this shows" and Fig 5).
 
-**Operational notes:**
-
-- Resources: `bsub -q short -n 1 -R "rusage[mem=8000]"`, with headroom over the actual ~1.1 GB.
-- **LSF pitfall:** a `-w 'done(<name>)'` dependency where the name matched many jobs submitted in a loop
-  fired **prematurely**, so the aggregator started while some jobs were still running and `summary.csv`
-  came out incomplete. Wait for all output files to exist, or use a job array, instead of relying on
-  `done(<name>)` for a batch.
