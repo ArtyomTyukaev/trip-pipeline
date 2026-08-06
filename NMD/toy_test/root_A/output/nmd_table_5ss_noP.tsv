@@ -1,0 +1,22 @@
+barcode	chrom	pos	strand	score	tx_id	gene_symbol	in_gene	excluded_reason	n_tx_overlap	loc	feat_idx	n_exons	cds_last_exon	tx_pos	region	insert_frame	insert_len	bc_has_stop	ptc_source	ptc_tx_pos	last_junction_pos	n_junc_downstream	dist_to_last_junction	dist_gt_50	selenocysteine	note	CHXbaseMean	CHXlog2FoldChange	CHXlfcSE	CHXpadj	nmd_expected	verdict_reason	category
+ACCC	chr1	1010	+	1	NM_900001.1	TOY_PLUS	1		1	intronic	1	7	6	6	5utr											insertion in 5'UTR	100.0	0.500	0.20	0.05	0	utr	3
+ACCG	chr1	1024	+	1	NM_900001.1	TOY_PLUS	1		1	intronic	2	7	6	9	5utr											insertion in 5'UTR	100.0	0.400	0.20	0.05	0	utr	3
+CCCC	chr1	1046	+	1	NM_900001.1	TOY_PLUS	1		1	intronic	3	7	6	22	cds	2	12	0	host_downstream	111	110				0	frameshift carries termination to or past the host's own stop codon	100.0	0.300	0.20	0.05	0	no_ptc_frameshift	3
+CTAA	chr1	1048	+	1	NM_900001.1	TOY_PLUS	1		1	intronic	3	7	6	22	cds	2	12	1	barcode	27	110	3	80	1	0		100.0	0.200	0.20	0.05	1	cds_intron	4
+CCCG	chr1	1070	+	1	NM_900001.1	TOY_PLUS	1		1	intronic	4	7	6	36	cds	0	12	0	insert_3p	45	110	2	62	1	0		100.0	0.100	0.20	0.05	1	cds_intron	4
+CCTC	chr1	1142	+	1	NM_900001.1	TOY_PLUS	1		1	intronic	5	7	6	98	cds	1	12	0	insert_5p	99	110	1	8	0	0		100.0	0.000	0.20	0.05	0	cds_intron	3
+CCTG	chr1	1160	+	1	NM_900001.1	TOY_PLUS	1		1	intronic	6	7	6	106	3utr											insertion in 3'UTR	100.0	-0.100	0.20	0.05	0	utr	3
+ACGC	chr1	1002	+	1	NM_900001.1	TOY_PLUS	1		1	exonic	1	7	6	2	5utr											insertion in 5'UTR	100.0	-0.200	0.20	0.05	0	utr	3
+ACGG	chr1	1056	+	1	NM_900001.1	TOY_PLUS	1		1	exonic	4	7	6	26	cds											coding exon upstream of the one holding the stop codon	100.0	-0.300	0.20	0.05	1	internal_exon	4
+ACTC	chr1	1150	+	1	NM_900001.1	TOY_PLUS	1		1	exonic	6	7	6	100	cds											insertion is in the exon where translation terminates	100.0	-0.400	0.20	0.05	0	last_exon	3
+ACTG	chr1	1168	+	1	NM_900001.1	TOY_PLUS	1		1	exonic	7	7	6	108	3utr											insertion in 3'UTR	100.0	-0.500	0.20	0.05	0	utr	3
+GCCC	chr1	2016	-	1	NM_900002.1	TOY_MINUS	1		1	intronic	2	3	3	69	cds	0	12	0	insert_3p	78	81	1	0	0	0		100.0	-0.600	0.20	0.05	0	cds_intron	3
+GCCG	chr1	2086	-	1	NM_900002.1	TOY_MINUS	1		1	intronic	1	3	3	9	cds	0	12	0	insert_3p	18	81	2	60	1	0		100.0	-0.700	0.20	0.05	1	cds_intron	4
+GCTC	chr1	2010	-	1	NM_900002.1	TOY_MINUS	1		1	exonic	3	3	3	70	cds											insertion is in the exon where translation terminates	100.0	-0.800	0.20	0.05	0	last_exon	3
+TCCC	chr1	3006	+	1	NM_900003.1	TOY_SINGLE	1		1	exonic	1	1	1	6	cds											insertion is in the exon where translation terminates	100.0	-0.900	0.20	0.05	0	last_exon	3
+TCCG	chr1	4016	+	1	NM_900004.1	TOY_SEAM	1		1	intronic	1	3	3	11	cds	1	12	0	host_insert_seam	9	32	2	20	0	0		100.0	-1.000	0.20	0.05	0	cds_intron	3
+TCGC	chr1	4041	+	1	NM_900004.1	TOY_SEAM	1		1	exonic	3	3	3	21	cds											insertion is in the exon where translation terminates	100.0	-1.100	0.20	0.05	0	last_exon	3
+AGGG	chr1	5000	+	1			0	intergenic	0																		100.0	-1.200	0.20	0.05		not_analysed	2
+AGGC	chr1	1046	-	1			0	antisense	0																		100.0	-1.300	0.20	0.05		not_analysed	2
+TCGG	chr1	1070	+	1	NM_900001.1	TOY_PLUS	1		1	intronic	4	7	6	36	cds	0	12	0	insert_3p	45	110	2	62	1	0		100.0		0.20	0.05	1	cds_intron	1
+TTTT	chr1	5100	+	1			0	intergenic	0																							not_analysed	1

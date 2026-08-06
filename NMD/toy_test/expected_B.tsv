@@ -1,0 +1,32 @@
+# insert B = GTAANNNNCTAGC, 13 nt (NOT a multiple of 3), barcode slot at offset 4-8.
+# Same toy genes, same barcodes, hand-derived the same way.
+# Placement (loc / feat_idx / cds_last_exon / tx_pos / region) is identical to variant A -- none of
+# it can depend on the insert. Only the computed rows move, for two reasons: every junction below
+# the insertion point shifts by 13 instead of 12, and a read-through now leaves the host in a
+# shifted frame.
+# The row that shows this plainly is CCCC: with 12 nt the host frame survives and its own TAA is
+# found at 111; with 13 nt the host is read out of frame and there is no stop anywhere downstream,
+# so ptc_source is "none" and no distance exists.
+# Variant B is the one that matches reality: the real insert is 400 nt and 400 % 3 = 1.
+barcode	in_gene	excluded_reason	loc	feat_idx	n_exons	cds_last_exon	tx_pos	region	verdict_reason	nmd_expected	insert_frame	insert_len	bc_has_stop	ptc_source	ptc_tx_pos	last_junction_pos	n_junc_downstream	dist_to_last_junction	dist_gt_50	selenocysteine	category
+ACCC	1	.	intronic	1	7	6	6	5utr	utr	0	.	.	.	.	.	.	.	.	.	.	3
+ACCG	1	.	intronic	2	7	6	9	5utr	utr	0	.	.	.	.	.	.	.	.	.	.	3
+CCCC	1	.	intronic	3	7	6	22	cds	no_ptc_frameshift	0	2	13	0	none	.	.	.	.	.	0	3
+CTAA	1	.	intronic	3	7	6	22	cds	cds_intron	1	2	13	1	barcode	27	111	3	81	1	0	4
+CCCG	1	.	intronic	4	7	6	36	cds	cds_intron	1	0	13	0	insert_3p	45	111	2	63	1	0	4
+CCTC	1	.	intronic	5	7	6	98	cds	cds_intron	0	1	13	0	insert_5p	99	111	1	9	0	0	3
+CCTG	1	.	intronic	6	7	6	106	3utr	utr	0	.	.	.	.	.	.	.	.	.	.	3
+ACGC	1	.	exonic	1	7	6	2	5utr	utr	0	.	.	.	.	.	.	.	.	.	.	3
+ACGG	1	.	exonic	4	7	6	26	cds	internal_exon	1	.	.	.	.	.	.	.	.	.	.	4
+ACTC	1	.	exonic	6	7	6	100	cds	last_exon	0	.	.	.	.	.	.	.	.	.	.	3
+ACTG	1	.	exonic	7	7	6	108	3utr	utr	0	.	.	.	.	.	.	.	.	.	.	3
+GCCC	1	.	intronic	2	3	3	69	cds	cds_intron	0	0	13	0	insert_3p	78	82	1	1	0	0	3
+GCCG	1	.	intronic	1	3	3	9	cds	cds_intron	1	0	13	0	insert_3p	18	82	2	61	1	0	4
+GCTC	1	.	exonic	3	3	3	70	cds	last_exon	0	.	.	.	.	.	.	.	.	.	.	3
+TCCC	1	.	exonic	1	1	1	6	cds	last_exon	0	.	.	.	.	.	.	.	.	.	.	3
+TCCG	1	.	intronic	1	3	3	11	cds	cds_intron	0	1	13	0	host_insert_seam	9	33	2	21	0	0	3
+TCGC	1	.	exonic	3	3	3	21	cds	last_exon	0	.	.	.	.	.	.	.	.	.	.	3
+AGGG	0	intergenic	.	.	.	.	.	.	not_analysed	.	.	.	.	.	.	.	.	.	.	.	2
+AGGC	0	antisense	.	.	.	.	.	.	not_analysed	.	.	.	.	.	.	.	.	.	.	.	2
+TCGG	1	.	intronic	4	7	6	36	cds	cds_intron	1	0	13	0	insert_3p	45	111	2	63	1	0	1
+TTTT	0	intergenic	.	.	.	.	.	.	not_analysed	.	.	.	.	.	.	.	.	.	.	.	1

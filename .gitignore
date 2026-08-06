@@ -1,5 +1,8 @@
 # pipeline outputs of the example run
-example_data/out/
+general_pipeline/example_data/out/
+
+# regenerated intermediates of the NMD toy test (run_toy.sh recreates them)
+NMD/toy_test/root_*/work/
 
 # raw / heavy sequencing data — never commit these
 *.fastq
@@ -14,6 +17,10 @@ example_data/out/
 hg38_ttaa.bed
 hg38.fa
 *.chrom.sizes
+
+# python bytecode
+__pycache__/
+*.pyc
 
 # logs and scratch
 *.log
