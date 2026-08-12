@@ -76,20 +76,19 @@ A black cell means that the feature was not included in the model for that libra
 
 A feature may be missing from one library but retained in the other for three main reasons:
 
-1. **The category never occurs in that library.** The two libraries are independent
-   experiments and the transposon landed in different places. `RepeatGroup_srpRNA` has one
-   barcode in `CPA_noP` and none in `5ss_noP`, so the column exists for one library only.
-   Most black cells are of this kind.
-2. **A whole chromatin state was filtered out.** The pipeline counts how many barcodes
-   each ChromHMM state has inside genes, and any state with fewer than 10 is removed, from
-   both tables at once. `ZNF/Rpts` has 43 barcodes in `CPA_noP`, but only 9 of them are
-   inside a gene, one short of the threshold, so all 43 are dropped. In `5ss_noP` there are
-   13 inside genes, so the state stays. One barcode of difference decides it, and this is
-   the largest black cell in the figures.
-3. **The level was constant on the training rows.** These had a single barcode in the
-   whole table, and it ended up in the holdout, so across the training rows the column was
-   zero everywhere. A column that never changes teaches the model nothing, so it is
-   removed before fitting.
+1. **The category never occurs in that library, 23 cells.** The two libraries are
+   independent experiments and the transposon landed in different places.
+   `annot_rna_type_miRNA` has barcodes in `CPA_noP` and none at all in `5ss_noP`.
+2. **It occurs, but all of its barcodes are dropped first, 12 cells.** Before fitting, the
+   pipeline removes barcodes with no ChromHMM annotation, removes ChromHMM states that have
+   fewer than 10 barcodes inside genes, and the intragenic table keeps only barcodes that
+   sit inside a MANE gene. Any of these can take the last barcode of a rare category away.
+   `ChromHMM_ZNF/Rpts` is the clearest case: 43 barcodes in `CPA_noP`, but only 9 of them
+   inside a gene, one short of the threshold, so all 43 are removed and the state vanishes
+   from both CPA tables. In `5ss_noP` there are 13 inside genes and it stays.
+3. **One barcode survives and it lands in the holdout, 3 cells.** The column is then zero
+   across every training row, and a column that never changes teaches the model nothing, so
+   it is removed before fitting.
 
 Features that were removed on purpose, the "inside a gene" flags in the intragenic table
 and the seven positional features in the intergenic one, are missing for both libraries
@@ -130,11 +129,12 @@ see below.
 
 ### Feature importance
 
-**Top: intragenic. Bottom: intergenic.**
+**Left to right: intragenic, intergenic, intragenic on a log colour scale, intergenic on a log colour scale.**
 
-[![classification SHAP, intragenic](figures/cls_baseline_shap_intragenic.png)](figures/cls_baseline_shap_intragenic.png)
-
-[![classification SHAP, intergenic](figures/cls_baseline_shap_intergenic.png)](figures/cls_baseline_shap_intergenic.png)
+<a href="figures/cls_baseline_shap_intragenic.png"><img src="figures/cls_baseline_shap_intragenic.png" width="230"></a>
+<a href="figures/cls_baseline_shap_intergenic.png"><img src="figures/cls_baseline_shap_intergenic.png" width="230"></a>
+<a href="figures/cls_baseline_logshap_intragenic.png"><img src="figures/cls_baseline_logshap_intragenic.png" width="230"></a>
+<a href="figures/cls_baseline_logshap_intergenic.png"><img src="figures/cls_baseline_logshap_intergenic.png" width="230"></a>
 
 *Click a figure to open it at full resolution.*
 
@@ -149,16 +149,6 @@ Among the chromatin features the leaders are `ChromHMM_Quies` and
 Host gene expression alone carries about 45% of the total importance in the intragenic
 model, with distance to the nearest CAGE cluster second at about 20%.
 
-### Feature importance, log colour scale
-
-**Top: intragenic. Bottom: intergenic.**
-
-[![classification log SHAP, intragenic](figures/cls_baseline_logshap_intragenic.png)](figures/cls_baseline_logshap_intragenic.png)
-
-[![classification log SHAP, intergenic](figures/cls_baseline_logshap_intergenic.png)](figures/cls_baseline_logshap_intergenic.png)
-
-*Click a figure to open it at full resolution.*
-
 
 <details> <summary><h3><ins>Click to expand: same figures without host gene expression</ins></h3></summary>
 
@@ -170,17 +160,12 @@ retrained, to see what the rest of the context can do on its own.
 <a href="figures/cls_nohostexp_metrics_intragenic.png"><img src="figures/cls_nohostexp_metrics_intragenic.png" width="410"></a>
 <a href="figures/cls_nohostexp_metrics_intergenic.png"><img src="figures/cls_nohostexp_metrics_intergenic.png" width="410"></a>
 
-**Feature importance. Top: intragenic. Bottom: intergenic.**
+**Feature importance. Left to right: intragenic, intergenic, intragenic on a log colour scale, intergenic on a log colour scale.**
 
-[![classification SHAP without host expression, intragenic](figures/cls_nohostexp_shap_intragenic.png)](figures/cls_nohostexp_shap_intragenic.png)
-
-[![classification SHAP without host expression, intergenic](figures/cls_nohostexp_shap_intergenic.png)](figures/cls_nohostexp_shap_intergenic.png)
-
-**Feature importance, log colour scale. Top: intragenic. Bottom: intergenic.**
-
-[![classification log SHAP without host expression, intragenic](figures/cls_nohostexp_logshap_intragenic.png)](figures/cls_nohostexp_logshap_intragenic.png)
-
-[![classification log SHAP without host expression, intergenic](figures/cls_nohostexp_logshap_intergenic.png)](figures/cls_nohostexp_logshap_intergenic.png)
+<a href="figures/cls_nohostexp_shap_intragenic.png"><img src="figures/cls_nohostexp_shap_intragenic.png" width="230"></a>
+<a href="figures/cls_nohostexp_shap_intergenic.png"><img src="figures/cls_nohostexp_shap_intergenic.png" width="230"></a>
+<a href="figures/cls_nohostexp_logshap_intragenic.png"><img src="figures/cls_nohostexp_logshap_intragenic.png" width="230"></a>
+<a href="figures/cls_nohostexp_logshap_intergenic.png"><img src="figures/cls_nohostexp_logshap_intergenic.png" width="230"></a>
 
 *Click a figure to open it at full resolution.*
 
@@ -215,11 +200,12 @@ The model was barely trained on raw `meanRPM`
 
 ### Feature importance
 
-**Top: intragenic. Bottom: intergenic.**
+**Left to right: intragenic, intergenic, intragenic on a log colour scale, intergenic on a log colour scale.**
 
-[![regression SHAP, intragenic](figures/reg_baseline_shap_intragenic.png)](figures/reg_baseline_shap_intragenic.png)
-
-[![regression SHAP, intergenic](figures/reg_baseline_shap_intergenic.png)](figures/reg_baseline_shap_intergenic.png)
+<a href="figures/reg_baseline_shap_intragenic.png"><img src="figures/reg_baseline_shap_intragenic.png" width="230"></a>
+<a href="figures/reg_baseline_shap_intergenic.png"><img src="figures/reg_baseline_shap_intergenic.png" width="230"></a>
+<a href="figures/reg_baseline_logshap_intragenic.png"><img src="figures/reg_baseline_logshap_intragenic.png" width="230"></a>
+<a href="figures/reg_baseline_logshap_intergenic.png"><img src="figures/reg_baseline_logshap_intergenic.png" width="230"></a>
 
 *Click a figure to open it at full resolution.*
 
@@ -230,17 +216,6 @@ reaches about 3% and sits around 7th place. In the classifier it is near the bot
 0.2% and around 24th.
 
 
-### Feature importance, log colour scale
-
-**Top: intragenic. Bottom: intergenic.**
-
-[![regression log SHAP, intragenic](figures/reg_baseline_logshap_intragenic.png)](figures/reg_baseline_logshap_intragenic.png)
-
-[![regression log SHAP, intergenic](figures/reg_baseline_logshap_intergenic.png)](figures/reg_baseline_logshap_intergenic.png)
-
-*Click a figure to open it at full resolution.*
-
-
 <details>
 <summary><h3><ins>Click to expand: same figures without host gene expression</ins></h3></summary>
 
@@ -249,17 +224,12 @@ reaches about 3% and sits around 7th place. In the classifier it is near the bot
 <a href="figures/reg_nohostexp_metrics_intragenic.png"><img src="figures/reg_nohostexp_metrics_intragenic.png" width="410"></a>
 <a href="figures/reg_nohostexp_metrics_intergenic.png"><img src="figures/reg_nohostexp_metrics_intergenic.png" width="410"></a>
 
-**Feature importance. Top: intragenic. Bottom: intergenic.**
+**Feature importance. Left to right: intragenic, intergenic, intragenic on a log colour scale, intergenic on a log colour scale.**
 
-[![regression SHAP without host expression, intragenic](figures/reg_nohostexp_shap_intragenic.png)](figures/reg_nohostexp_shap_intragenic.png)
-
-[![regression SHAP without host expression, intergenic](figures/reg_nohostexp_shap_intergenic.png)](figures/reg_nohostexp_shap_intergenic.png)
-
-**Feature importance, log colour scale. Top: intragenic. Bottom: intergenic.**
-
-[![regression log SHAP without host expression, intragenic](figures/reg_nohostexp_logshap_intragenic.png)](figures/reg_nohostexp_logshap_intragenic.png)
-
-[![regression log SHAP without host expression, intergenic](figures/reg_nohostexp_logshap_intergenic.png)](figures/reg_nohostexp_logshap_intergenic.png)
+<a href="figures/reg_nohostexp_shap_intragenic.png"><img src="figures/reg_nohostexp_shap_intragenic.png" width="230"></a>
+<a href="figures/reg_nohostexp_shap_intergenic.png"><img src="figures/reg_nohostexp_shap_intergenic.png" width="230"></a>
+<a href="figures/reg_nohostexp_logshap_intragenic.png"><img src="figures/reg_nohostexp_logshap_intragenic.png" width="230"></a>
+<a href="figures/reg_nohostexp_logshap_intergenic.png"><img src="figures/reg_nohostexp_logshap_intergenic.png" width="230"></a>
 
 *Click a figure to open it at full resolution.*
 
