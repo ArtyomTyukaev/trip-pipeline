@@ -4,6 +4,9 @@ general_pipeline/example_data/out/
 # regenerated intermediates of the NMD toy test (run_toy.sh recreates them)
 NMD/toy_test/root_*/work/
 
+# per-barcode numbers exported for the manuscript figure (1.1 MB, export_panel_data.py recreates it)
+NMD/analysis/data/
+
 # raw / heavy sequencing data — never commit these
 *.fastq
 *.fastq.gz

@@ -38,6 +38,9 @@ GREY, INK, INK2, GRID = "#8a8a85", "#0b0b0b", "#52514e", "#e3e3e0"
 SEQ = ["#ded9f5", "#b6abe6", "#8b7bd2", "#6455b9", "#453398"]   # one hue, light -> dark
 
 LIBS = [("5ss_noP", "5ss"), ("CPA_noP", "CPA")]
+# What the two constructs are called in the manuscript. The internal library names stay as
+# they are everywhere else in the pipeline; only figure labels follow the manuscript wording.
+DISPLAY = {"5ss_noP": "Regular", "CPA_noP": "PCPA"}
 DOTS_UP_TO = 500        # boxplots smaller than this also show every barcode as a dot
 
 plt.rcParams.update({
@@ -47,6 +50,10 @@ plt.rcParams.update({
     "text.color": INK, "axes.labelcolor": INK, "xtick.color": INK2, "ytick.color": INK2,
     "grid.color": GRID, "grid.linewidth": 0.6,
     "legend.frameon": False, "figure.dpi": 150, "savefig.bbox": "tight",
+    # Vector output (save(..., vector=True)): keep the labels as real text rather than outlines --
+    # TrueType embedded in the PDF, plain <text> in the SVG -- so a figure that goes to a journal
+    # can still have its type edited and searched. No effect on the PNGs.
+    "pdf.fonttype": 42, "ps.fonttype": 42, "svg.fonttype": "none",
 })
 
 
@@ -120,10 +127,22 @@ def expressed(rows):
     return [r for r in rows if r["lfc"] is not None]
 
 
-def save(fig, name):
-    fig.savefig(os.path.join(PICS, name), facecolor=fig.get_facecolor())
-    plt.close(fig)
+def save(fig, name, vector=False):
+    """PNG always; `vector` additionally writes SVG and PDF of the same figure.
+
+    Figures that go into the paper are asked for as vector art, so those pass vector=True and get
+    a 300 dpi PNG on top for quick viewing. Text is kept as text in the SVG/PDF (no path
+    conversion) so the labels stay editable downstream."""
+    fig.savefig(os.path.join(PICS, name), facecolor=fig.get_facecolor(),
+                dpi=300 if vector else None)
     print("  pics/%s" % name)
+    if vector:
+        stem = os.path.splitext(name)[0]
+        for ext in ("svg", "pdf"):
+            fig.savefig(os.path.join(PICS, "%s.%s" % (stem, ext)),
+                        facecolor=fig.get_facecolor())
+            print("  pics/%s.%s" % (stem, ext))
+    plt.close(fig)
 
 
 def tidy(ax, xgrid=False, ygrid=True):
@@ -138,14 +157,19 @@ def tidy(ax, xgrid=False, ygrid=True):
 
 
 def box_groups(ax, groups, colors, xlim=(-3.5, 6.5), ylabels=True, min_n=5,
-               xlabel="log2 fold change (CHX / EtOH)"):
+               xlabel="log2 fold change (CHX / EtOH)", fontsize=None):
     """Horizontal boxes over a jittered strip of the individual barcodes.
 
     For a group of fewer than DOTS_UP_TO barcodes every barcode is also drawn as one dot behind the
     box, so the reader sees the actual sample rather than five summary numbers; the box is kept
     translucent for the dots to show through. Bigger groups get the box alone. Whiskers
     are the 5th/95th percentiles -- with a handful of barcodes at log2FC 12 the full range squashes
-    every box into a sliver."""
+    every box into a sliver.
+
+    `xlim=None` leaves the limits to the caller and only returns the (min, max) actually drawn, so
+    a caller with two panels can pick one shared range that holds every whisker end -- a fixed
+    range clips them, and a clipped whisker reads as a shorter tail than the data has.
+    `fontsize` overrides the size of the tick and axis labels of this axis."""
     rnd = random.Random(0)                       # fixed seed: the jitter must not move between runs
     for i, (g, c) in enumerate(zip(groups, colors), start=1):
         v = g[1]
@@ -179,12 +203,23 @@ def box_groups(ax, groups, colors, xlim=(-3.5, 6.5), ylabels=True, min_n=5,
                     markeredgecolor="#fcfcfb", markeredgewidth=1.4, zorder=4)
     ax.axvline(0, color=INK2, linewidth=0.9, linestyle=":")
     if ylabels:
-        ax.set_yticklabels(["%s  (n=%d)" % (g[0], len(g[1])) for g in groups])
+        ax.set_yticklabels(["%s  (n=%d)" % (g[0], len(g[1])) for g in groups],
+                           fontsize=fontsize)
     else:
-        ax.set_yticklabels(["n=%d" % len(g[1]) for g in groups], fontsize=7.5, color=INK2)
-    ax.set_xlim(*xlim)
-    ax.set_xlabel(xlabel)
+        ax.set_yticklabels(["n=%d" % len(g[1]) for g in groups],
+                           fontsize=fontsize or 7.5, color=INK2)
+    if xlim is not None:
+        ax.set_xlim(*xlim)
+    ax.set_xlabel(xlabel, fontsize=fontsize)
+    if fontsize:
+        ax.tick_params(axis="both", labelsize=fontsize)
     tidy(ax, xgrid=True, ygrid=False)
+
+    # Extent of what is drawn as a summary: whisker ends of the real boxes, plus the bare median
+    # dot of the groups too small for one. The caller uses it to size the axis.
+    drawn = [x for w in bp["whiskers"] if w.get_visible() for x in w.get_xdata()]
+    drawn += [med(vals[i]) for i, v in enumerate(big) if not v and vals[i]]
+    return (min(drawn), max(drawn)) if drawn else (0.0, 0.0)
 
 
 def binned(ax, xs, ys, nbins, color, label=None, band=True):
@@ -353,16 +388,31 @@ def fig03_verdict(data):
 
 
 def fig04_ptc(data):
-    fig, axes = plt.subplots(1, 2, figsize=(9.5, 2.6))
+    """Panel 1G of the paper, so it follows the manuscript conventions rather than the defaults of
+    this script: the two constructs are labelled Regular / PCPA, every label is 6 pt, the figure is
+    laid out at its intended printed width so that 6 pt stays 6 pt on the page, and it is written
+    as SVG and PDF next to the PNG.
+
+    The shared x range is taken from the whiskers the two panels actually drew instead of the fixed
+    default -- at the default the 95th-percentile whisker of "PTC created" ran off the right edge in
+    both panels, which reads as a shorter tail than the data has."""
+    fs = 6
+    fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.0))
+    spans = []
     for ax, (lib, _) in zip(axes, LIBS):
         rows = expressed(data[lib])
         groups = [("outside a gene (baseline)", [r["lfc"] for r in rows if r["category"] == "2"]),
                   ("no PTC created", [r["lfc"] for r in rows
                                         if r["in_gene"] == "1" and not r["has_ptc"]]),
                   ("PTC created", [r["lfc"] for r in rows if r["has_ptc"]])]
-        box_groups(ax, groups, [GREY, BLUE, ORANGE], ylabels=(ax is axes[0]))
-        ax.set_title(lib)
-    save(fig, "fig04_ptc_yesno.png")
+        spans.append(box_groups(ax, groups, [GREY, BLUE, ORANGE], xlim=None,
+                                ylabels=(ax is axes[0]), fontsize=fs))
+        ax.set_title(DISPLAY[lib], fontsize=fs)
+    lo, hi = min(a for a, _ in spans), max(b for _, b in spans)
+    pad = 0.04 * (hi - lo)
+    for ax in axes:
+        ax.set_xlim(lo - pad, hi + pad)
+    save(fig, "fig04_ptc_yesno.png", vector=True)
 
 
 def fig05_dist_hist(data):
@@ -760,19 +810,28 @@ def fig16_reproducibility(data):
     save(fig, "fig16_reproducibility.png")
 
 
-def main():
+def main(argv=()):
+    """No arguments redraws everything; any arguments are name fragments and only the figure
+    functions matching one of them run (`make_figures.py fig04`), so a single figure can be
+    re-exported without rewriting the other twenty PNGs."""
     os.makedirs(PICS, exist_ok=True)
+    figures = (fig01_composition, fig01b_loc_counts, fig01c_position_landscape,
+               fig02_ecdf, fig03_verdict, fig04_ptc, fig05_dist_hist,
+               fig07_matched, fig08_ptc_source, fig09_frame, fig10_intron_index,
+               fig11_relpos, fig11b_ptc_from_atg, fig11c_positional_variables,
+               fig11d_position_control, fig12_region_loc, fig13_ma, fig14_host_expr,
+               fig15_chromatin, fig16_reproducibility)
+    if argv:
+        figures = tuple(f for f in figures if any(a in f.__name__ for a in argv))
+        if not figures:
+            print("no figure matches %s" % " ".join(argv))
+            return 1
     data = load()
     print("figures -> analysis/pics/")
-    for f in (fig01_composition, fig01b_loc_counts, fig01c_position_landscape,
-              fig02_ecdf, fig03_verdict, fig04_ptc, fig05_dist_hist,
-              fig07_matched, fig08_ptc_source, fig09_frame, fig10_intron_index,
-              fig11_relpos, fig11b_ptc_from_atg, fig11c_positional_variables,
-              fig11d_position_control, fig12_region_loc, fig13_ma, fig14_host_expr, fig15_chromatin,
-              fig16_reproducibility):
+    for f in figures:
         f(data)
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))
