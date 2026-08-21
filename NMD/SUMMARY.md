@@ -160,7 +160,7 @@ inside a gene does nothing by itself; what does something is the predicted prema
 
 
 
-![with a premature stop vs without](analysis/pics/fig04_ptc_yesno.png)
+![with a premature stop vs without](analysis/pics/fig1G_ptc_yesno.png)
 
 The coarsest and cleanest split. The external baseline and "no stop created" land on top of each
 other; "a stop was created" moves up. Medians: category 4 at **+0.70 / +0.99** against category 3

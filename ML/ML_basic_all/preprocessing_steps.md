@@ -2,19 +2,19 @@
 
 Which file joins to which, by which key, in what row order, for all four datasets.
 
-Project root `/home/projects/ulitsky/artemti/2026/TRIP_SCRIPTS/`. Paths are relative to it
-unless they start with `/home/`.
+Project root `/home/projects/ulitsky/artemti/2026/TRIP_SCRIPTS/`. Every path below is written
+out in full.
 
 ---
 
 ## 1. The two notebooks
 
 ```
-DATA/<dataset>/prepare_dataset.ipynb    reads the read-only source tree
-                                        -> DATA/<dataset>/   (6 sub-folders)
+/home/projects/ulitsky/artemti/2026/TRIP_SCRIPTS/DATA/<dataset>/prepare_dataset.ipynb    reads the read-only source tree
+                                        -> /home/projects/ulitsky/artemti/2026/TRIP_SCRIPTS/DATA/<dataset>/   (6 sub-folders)
 
-1) Data Preprocessing.ipynb             reads DATA/<dataset>/
-                                        -> tables_for_training/<dataset>/{exp}.alldata.tab
+/home/projects/ulitsky/artemti/2026/TRIP_SCRIPTS/1) Data Preprocessing.ipynb             reads /home/projects/ulitsky/artemti/2026/TRIP_SCRIPTS/DATA/<dataset>/
+                                        -> /home/projects/ulitsky/artemti/2026/TRIP_SCRIPTS/tables_for_training/<dataset>/{exp}.alldata.tab
 ```
 
 Notebook 1 serves all four datasets; the path block is chosen by uncommenting one cell, and
@@ -59,12 +59,12 @@ for the rest).
 
 | dataset | experiments | source tree |
 |---|---|---|
-| `single_combined` | 2 (`5ss_noP`, `CPA_noP`) | `igoru/data/human/TRIP/single_combined/` |
-| `intron_exp` | 48 = 8 introns × 3 sample types × 2 pools | `shared/data/human/TRIP/IntronTRIP_combined/` |
+| `single_combined` | 2 (`5ss_noP`, `CPA_noP`) | `/home/projects/ulitsky/igoru/data/human/TRIP/single_combined/` |
+| `intron_exp` | 48 = 8 introns × 3 sample types × 2 pools | `/home/projects/ulitsky/shared/data/human/TRIP/IntronTRIP_combined/` |
 | `intron_splicing` | 16 = 8 introns × 2 pools | same tree |
-| `set1_combined_1` | 40 of 48, see §6 | `lidiag/TRIP_data/set1_combined_1/` |
+| `set1_combined_1` | 40 of 48, see §6 | `/home/projects/ulitsky/lidiag/TRIP_data/set1_combined_1/` |
 
-`igoru/data/human/TRIP/` and `shared/data/human/TRIP/` are the same directory through two mounts.
+`/home/projects/ulitsky/igoru/data/human/TRIP/` and `/home/projects/ulitsky/shared/data/human/TRIP/` are the same directory through two mounts.
 
 | dataset | output rows | cols | make-up |
 |---|---|---|---|
@@ -88,7 +88,7 @@ The target is named `exp.log10` everywhere because both training scripts hardcod
 `CATEGORICAL_COLUMNS` for the three new datasets:
 `ChromHMM,SPIN,GC_category,RepeatGroup,annot_rna_type,Chr`. For set1 it is the script default
 `ChromHMM`, the only factor among its 14 features. The 0.6/0.8 rule is applied by name from the
-`introns_splicing` list in `MODELS/XGB_classifier/XGB_DS_Classifier.py`, currently all 16 pool
+`introns_splicing` list in `/home/projects/ulitsky/artemti/2026/TRIP_SCRIPTS/MODELS/XGB_classifier/XGB_DS_Classifier.py`, currently all 16 pool
 names; the script raises if `BINARY_THRESHOLD` is set while one of them is in the batch.
 
 Coordinates, from `barcodes_bed/`:
@@ -106,22 +106,22 @@ window is 201 nt for the first three and 102 nt for set1.
 ## 3. `single_combined`
 
 ```
-{EXP}.txt.processed_table.txt        40,386 x 92 and 38,614 x 96, index = barcode
+/home/projects/ulitsky/igoru/data/human/TRIP/single_combined/{EXP}.txt.processed_table.txt        40,386 x 92 and 38,614 x 96, index = barcode
     -> annotated_tables/{EXP}.annotated_tables.txt   24 cols
        10 factor/is_na + 12 numeric + NMD_expected + exp.log10 (= raw meanRPM)
 
-NMD/output/nmd_table_{EXP}.tsv       joined on barcode, covers every barcode
+/home/projects/ulitsky/artemti/2026/NMD/output/nmd_table_{EXP}.tsv       joined on barcode, covers every barcode
     NMD_expected = (nmd_expected == 1); positives 7,927/40,386 and 7,809/38,614
 
-meta/{EXP}.{track}.column_histone.txt   30 files, all kept  -> combined/, 30 cols
-meta/{EXP}.{track}.column_speckle.txt   29 files, 21 kept   -> combined/, 21 cols
-    each file = field 4 (mean0) of meta/{EXP}.{track}.tab.gz, same order, no barcodes
+/home/projects/ulitsky/igoru/data/human/TRIP/single_combined/meta/{EXP}.{track}.column_histone.txt   30 files, all kept  -> combined/, 30 cols
+/home/projects/ulitsky/igoru/data/human/TRIP/single_combined/meta/{EXP}.{track}.column_speckle.txt   29 files, 21 kept   -> combined/, 21 cols
+    each file = field 4 (mean0) of /home/projects/ulitsky/igoru/data/human/TRIP/single_combined/meta/{EXP}.{track}.tab.gz, same order, no barcodes
 
 barcodes_order/{EXP}.hg38_barcodes.txt  = field 0 of any histone .tab.gz   58,172 / 57,303 rows
 barcodes_order/{EXP}.hg19_barcodes.txt  = field 0 of any speckle .tab.gz   57,850 / 56,980 rows
 
-{EXP}.plus_50_each_side.bed        -> barcodes_bed/{EXP}.bed   (hg38, 101 nt)
-hg19.{EXP}.plus_50_each_side.bed   not copied, only its barcode set is checked
+/home/projects/ulitsky/igoru/data/human/TRIP/single_combined/{EXP}.plus_50_each_side.bed        -> barcodes_bed/{EXP}.bed   (hg38, 101 nt)
+/home/projects/ulitsky/igoru/data/human/TRIP/single_combined/hg19.{EXP}.plus_50_each_side.bed   not copied, only its barcode set is checked
 ```
 
 The 100 and 94 barcodes lost against `processed_table` are exactly those absent from the hg19
@@ -136,19 +136,19 @@ bed. Target spread, which is what drives `LOG_TARGET` and the 0.1 threshold: `5s
 Introns A1, B1, B3-6, B3-9, C1, D1, E1, H1.
 
 ```
-{intron}.txt.processed_table.txt      index = barcode, 60 named columns
+/home/projects/ulitsky/shared/data/human/TRIP/IntronTRIP_combined/{intron}.txt.processed_table.txt      index = barcode, 60 named columns
     sample columns = header fields after `closestCAGEdist`,
         minus anything starting with `mean`,
         minus anything ending in .RPM / .normRPM / .mapRPM
         -> exactly 6 per intron (Spliced, Total, Unspliced x 2 pools)
     experiment name = that column name, with `Toal` -> `Total` (H1 only)
-    -> DATA/intron_exp/sample_map.tsv   experiment / intron / source_column
+    -> /home/projects/ulitsky/artemti/2026/TRIP_SCRIPTS/DATA/intron_exp/sample_map.tsv   experiment / intron / source_column
     -> annotated_tables/{exp}.annotated_tables.txt   23 cols
        exp.log10 = that sample column; rows where it is NaN are dropped
 
-meta/{intron}.{track}.column_{histone,speckle}.txt   -> combined/{intron}.combined_{kind}.txt
+/home/projects/ulitsky/shared/data/human/TRIP/IntronTRIP_combined/meta/{intron}.{track}.column_{histone,speckle}.txt   -> combined/{intron}.combined_{kind}.txt
 barcodes_order/{intron}.{hg38,hg19}_barcodes.txt     = field 0 of the matching .tab.gz
-{intron}.plus_50_each_side.bed                       -> barcodes_bed/{intron}.bed
+/home/projects/ulitsky/shared/data/human/TRIP/IntronTRIP_combined/{intron}.plus_50_each_side.bed                       -> barcodes_bed/{intron}.bed
 ```
 
 The six sample columns are found by position because their names follow three different
@@ -182,16 +182,16 @@ deliberately kept out of `selected_columns/`; it is a summary of the Total sampl
 Same 8 introns and same 22 features as `intron_exp`; one experiment per intron and pool.
 
 ```
-spliced_unspliced.txt      the driver, 16 lines, no header
+/home/projects/ulitsky/shared/data/human/TRIP/IntronTRIP_combined/spliced_unspliced.txt      the driver, 16 lines, no header
     field 0 = experiment name, fields 1..3 = spliced / unspliced / total sample names
-    splicing.txt beside it is STALE: 10 lines, the five older introns only
+    /home/projects/ulitsky/shared/data/human/TRIP/IntronTRIP_combined/splicing.txt beside it is STALE: 10 lines, the five older introns only
 
-{intron}_{pool}.spliced_unspliced.combined_counts.txt      index = barcode
+/home/projects/ulitsky/shared/data/human/TRIP/IntronTRIP_combined/{intron}_{pool}.spliced_unspliced.combined_counts.txt      index = barcode
     columns: norm, exp, Chr, Pos, Strand, map, exp_unspliced, exp_total, exp.log10
     exp.log10 = exp / (exp + exp_unspliced), NA where exp + exp_unspliced < 20
     -> the target, after dropna(), joined to the intron's feature frame on barcode
 
-{intron}.txt.processed_table.txt   -> the same 22 features, no readout taken from it
+/home/projects/ulitsky/shared/data/human/TRIP/IntronTRIP_combined/{intron}.txt.processed_table.txt   -> the same 22 features, no readout taken from it
 combined/, barcodes_order/, barcodes_bed/   as in intron_exp, built independently
 ```
 
@@ -218,18 +218,18 @@ folders and the two name lists are byte-identical copies of the `lidiag` files, 
 checked.
 
 ```
-{exp}.annotated_tables.txt    copied as is, 48 cols, exp.log10 is a real log expression
+/home/projects/ulitsky/lidiag/TRIP_data/set1_combined_1/{exp}.annotated_tables.txt    copied as is, 48 cols, exp.log10 is a real log expression
     selected_columns/annot_tab_selected_columns.txt keeps 15:
         norm, MANE_all_exp.norm.log10, MANElength, MANE_intron_length, DistToTSS, DistToTES,
         RelPos, DistToIntron5, DistToIntron3, RelIntronPos, ChromHMM, GC, MANE_all,
         MANE_exonic, exp.log10
 
-meta/{exp}/{exp}.{track}.column_{kind}.txt      per-track files live in a PER-EXPERIMENT
+/home/projects/ulitsky/lidiag/TRIP_data/set1_combined_1/meta/{exp}/{exp}.{track}.column_{kind}.txt      per-track files live in a PER-EXPERIMENT
                                                 sub-directory, unlike the intron tree
     -> combined/{exp}.combined_{kind}.txt       192 matrices = 48 x 4 families, ~1 GB,
                                                 no symlinks, every experiment its own
-{exp}.bed                     -> barcodes_bed/{exp}.bed    2 nt intervals
-{exp}.{hg38,hg19,stranded}_barcodes.txt  -> barcodes_order/, copies, not regenerated
+/home/projects/ulitsky/lidiag/TRIP_data/set1_combined_1/{exp}.bed                     -> barcodes_bed/{exp}.bed    2 nt intervals
+/home/projects/ulitsky/lidiag/TRIP_data/set1_combined_1/{exp}.{hg38,hg19,stranded}_barcodes.txt  -> barcodes_order/, copies, not regenerated
 ```
 
 | family | per-track files | kept | order file |
@@ -295,7 +295,7 @@ index — the barcode — so `pd.read_csv(..., sep='\t')` works. `awk`, `header=
 0/1 presence flag, and the name is discarded because as a category it would be thousands of
 levels. `MANE_antisense` and `gencode_noncoding` are binarised in `prepare_dataset.ipynb`;
 `MANE_all` and `MANE_exonic` stay raw strings because the training scripts binarise them
-themselves. Both are in `settings/columns_to_drop_in_intragenic.txt`, so they only reach a
+themselves. Both are in `/home/projects/ulitsky/artemti/2026/TRIP_SCRIPTS/settings/columns_to_drop_in_intragenic.txt`, so they only reach a
 model on the intergenic table.
 
 **Missing categories are filled with the literal string `absent`** in `annot_rna_type`, `SPIN`,
@@ -319,7 +319,7 @@ dropped without a message. Annotation list lengths: `single_combined` 24 (23 fea
 ## 8. Traps
 
 **Every library loses the first barcode of its bed at the annotation stage.**
-`igoru/repos/trip-unified-pipeline/scripts/11_table_annotation_genuine_barcodes.R:91` reads the
+`/home/projects/ulitsky/igoru/repos/trip-unified-pipeline/scripts/11_table_annotation_genuine_barcodes.R:91` reads the
 headerless BED6 with `header = T`, so the first integration is consumed as a column-name row.
 The next line overwrites the names with the correct hardcoded ones, so there is no error and no
 warning — just one row fewer, and the table starts at bed line 2. Confirmed for all 8 introns
@@ -342,7 +342,7 @@ it equals byte for byte:
 | `IntronTRIP`, `A1` | 27 of 30 wrong | 14 of 29 wrong | — | — |
 
 The two trees were globbed in different collations, so no single Python sort reproduces both.
-`settings/custom_functions/build_combined_from_columns.py` takes each column name from its own
+`/home/projects/ulitsky/artemti/2026/TRIP_SCRIPTS/settings/custom_functions/build_combined_from_columns.py` takes each column name from its own
 file name, and `write_combined()` writes the matrix and the name list from one column list, so
 they cannot drift.
 
@@ -358,8 +358,8 @@ flat 101. It is used only for the speckle and u2af2 row order and is never copie
 `barcodes_bed/` — notebook 1 looks the bed up as `{exp}*.bed`, which never matches `hg19.*`.
 
 **The `3intron` library type is missing from the intron data.**
-`IntronTRIP_combined/combos.txt` — the driver deciding which samples enter `processed_table` —
-is byte-for-byte `run2/combos.txt` + `run4/combos.txt`, so run3 is not wired in at all. That
+`/home/projects/ulitsky/shared/data/human/TRIP/IntronTRIP_combined/combos.txt` — the driver deciding which samples enter `processed_table` —
+is byte-for-byte `/home/projects/ulitsky/shared/data/human/TRIP/IntronTRIP_run2/combos.txt` + `/home/projects/ulitsky/shared/data/human/TRIP/IntronTRIP_run4/combos.txt`, so run3 is not wired in at all. That
 drops its 10 `3intron` samples plus its own 10 `UNS` and 5 `Total_totalRNA`. And `3intron` is
 not a renamed `Spliced`: on shared barcodes the two splicing fractions barely correlate (`A1_1`
 r = −0.09 on 5,254; `H1_1` r = 0.23 on 3,041). Six of the ten `3intron.combined_counts.txt`
@@ -406,5 +406,5 @@ Two checks on the numbers themselves, which catch a label shift that survives al
 
 ## 10. Current state
 
-`DATA/` is built for all four datasets. `tables_for_training/` holds `single_combined` (2
+`/home/projects/ulitsky/artemti/2026/TRIP_SCRIPTS/DATA/` is built for all four datasets. `/home/projects/ulitsky/artemti/2026/TRIP_SCRIPTS/tables_for_training/` holds `single_combined` (2
 tables), `intron_exp` (48), `intron_splicing` (16) and `set1_combined_1` (48).
