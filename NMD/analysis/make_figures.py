@@ -14,6 +14,7 @@ out  analysis/pics/*.png
 """
 
 import csv
+import math
 import os
 import random
 import sys
@@ -38,9 +39,12 @@ GREY, INK, INK2, GRID = "#8a8a85", "#0b0b0b", "#52514e", "#e3e3e0"
 SEQ = ["#ded9f5", "#b6abe6", "#8b7bd2", "#6455b9", "#453398"]   # one hue, light -> dark
 
 LIBS = [("5ss_noP", "5ss"), ("CPA_noP", "CPA")]
-# What the two constructs are called in the manuscript. The internal library names stay as
-# they are everywhere else in the pipeline; only figure labels follow the manuscript wording.
-DISPLAY = {"5ss_noP": "Regular", "CPA_noP": "PCPA"}
+# Panel titles. This used to map the libraries to the manuscript's wording, "Regular" and "PCPA",
+# and that was rejected: the figures are read next to the tables, the logs and the file names, and
+# every one of those says 5ss_noP and CPA_noP, so a second set of names for the same two things
+# only makes the reader translate. Kept as a mapping rather than deleted because
+# export_panel_data.py imports it and fig1G is drawn from what it writes.
+DISPLAY = {"5ss_noP": "5ss_noP", "CPA_noP": "CPA_noP"}
 DOTS_UP_TO = 500        # boxplots smaller than this also show every barcode as a dot
 
 plt.rcParams.update({
@@ -55,6 +59,129 @@ plt.rcParams.update({
     # can still have its type edited and searched. No effect on the PNGs.
     "pdf.fonttype": 42, "ps.fonttype": 42, "svg.fonttype": "none",
 })
+
+
+# ----------------------------------------------------------------------------- journal style
+# The four panels that go into the manuscript (fig01c, fig08, fig11_relpos, and fig1G, which is
+# drawn by fig04_nature.R) follow the conventions Nature-family journals ask for: one sans face at
+# one size, sentence case, nothing bold, no grid, no frame, no background tint, hairlines a printer
+# can still hold, and the sample sizes on the figure rather than only in the caption.
+#
+# One thing cannot be matched here. fig1G is drawn in R because this cluster has neither Helvetica
+# nor Arial, and matplotlib can only embed a font it can find, so the vector output of these three
+# is set in DejaVu Sans. The geometry and the line weights match fig1G; the typeface does not. The
+# route to real Helvetica is the one fig1G already takes - dump the panel to TSV, draw it in R.
+MM = 1 / 25.4                       # matplotlib works in inches, journals in millimetres
+COL2 = 183 * MM                     # the double-column measure, so 6 pt is 6 pt on the page
+HAIR = 0.5                          # pt; 0.25 pt is the print floor but vanishes on screen at 150 dpi
+FS = 7                              # one size for every label
+FS_SMALL = 6                        # sample sizes and footnotes
+
+# Four ordered categories of where a stop codon comes from, so a single hue stepped light -> dark
+# rather than four unrelated colours: the order 5' -> 3' along the transcript is the information.
+# Same violet as the "PTC created" group of fig1G, so the two panels read as one figure.
+SEQ_STROKE = ["#8b7bd2", "#6455b9", "#4a3aa7", "#2e2170"]
+
+
+def journal(ax, xgrid=False, ygrid=False):
+    """Strip an axis down to a hairline x rule with outward ticks, and nothing else."""
+    for side in ("top", "right", "left"):
+        ax.spines[side].set_visible(False)
+    ax.spines["bottom"].set_linewidth(HAIR)
+    ax.spines["bottom"].set_color(INK)
+    ax.tick_params(direction="out", length=2.2, width=HAIR, colors=INK, labelsize=FS, pad=2)
+    ax.tick_params(axis="y", length=0)
+    for axis, on in (("x", xgrid), ("y", ygrid)):
+        # grid(False, colour=...) is read by matplotlib as "enable it, with these properties",
+        # so the properties can only be passed on the branch that actually wants a grid.
+        if on:
+            ax.grid(True, axis=axis, color=GRID, linewidth=HAIR, zorder=0)
+        else:
+            ax.grid(False, axis=axis)
+    ax.set_axisbelow(True)
+
+
+def x_rule(ax, ticks):
+    """Clip the x rule to the tick range.
+
+    A journal axis is a scale, not a border: it has to stop where the numbers stop. matplotlib
+    draws the spine across the whole panel, so a panel with a reserved strip on the right - for
+    stars, or for end labels - grows a rule into empty space. ggplot has the same habit; the R
+    panel fixes it the same way."""
+    ax.spines["bottom"].set_bounds(min(ticks), max(ticks))
+
+
+def stars(p, n_min=None, min_n=5):
+    """The conventional significance ladder, which is NOT the number of decimals of p.
+
+    ns / * / ** / *** / **** at 0.05 / 0.01 / 0.001 / 0.0001, and it stops at four: p = 5.8e-42
+    and p = 9.0e-57 are both '****'. The exact numbers therefore have to travel in the caption,
+    which is what the console output of each figure is for.
+
+    A borderline p is the weakness of the notation: p = 0.05003 prints 'ns' while 0.0499 would
+    print '*', and nothing about the data distinguishes them."""
+    if n_min is not None and n_min < min_n:
+        return ""
+    if p is None or p != p:
+        return ""
+    for cut, mark in ((1e-4, "****"), (1e-3, "***"), (1e-2, "**"), (5e-2, "*")):
+        if p < cut:
+            return mark
+    return "ns"
+
+
+def holm(pvals):
+    """Holm-Bonferroni adjusted p values, returned in the input order.
+
+    Same guarantee on the family-wise error rate as plain Bonferroni and uniformly more powerful,
+    so there is no reason to use Bonferroni instead. Sort ascending, multiply the k-th by (m - k),
+    then enforce monotonicity so an adjusted value can never fall below an earlier one.
+
+    The family is the set of comparisons against the shared reference WITHIN ONE LIBRARY. The two
+    libraries are different constructs measured on different barcodes - separate experiments, not
+    two looks at one question - so correcting across them would make each experiment penalise the
+    other."""
+    m = len(pvals)
+    out = [1.0] * m
+    running = 0.0
+    for k, i in enumerate(sorted(range(m), key=lambda j: pvals[j])):
+        running = max(running, (m - k) * pvals[i])
+        out[i] = min(1.0, running)
+    return out
+
+
+def mannwhitney(a, b):
+    """Two-sided Mann-Whitney U, the two-sample form of the Wilcoxon rank-sum test.
+
+    Written out rather than imported: this module deliberately depends on nothing but matplotlib,
+    and the normal approximation is what scipy would use at these sample sizes anyway. Ties get
+    average ranks and the variance is tie-corrected."""
+    if len(a) < 3 or len(b) < 3:
+        return None
+    pool = sorted([(v, 0) for v in a] + [(v, 1) for v in b])
+    ranks = [0.0] * len(pool)
+    ties = []
+    i = 0
+    while i < len(pool):
+        j = i
+        while j + 1 < len(pool) and pool[j + 1][0] == pool[i][0]:
+            j += 1
+        r = (i + j) / 2.0 + 1.0
+        for k in range(i, j + 1):
+            ranks[k] = r
+        ties.append(j - i + 1)
+        i = j + 1
+    n1, n2 = len(a), len(b)
+    r1 = sum(rk for rk, (_, g) in zip(ranks, pool) if g == 0)
+    u1 = r1 - n1 * (n1 + 1) / 2.0
+    n = n1 + n2
+    mu = n1 * n2 / 2.0
+    tie_term = sum(t ** 3 - t for t in ties)
+    var = n1 * n2 / 12.0 * ((n + 1) - tie_term / (n * (n - 1.0)))
+    if var <= 0:
+        return None
+    z = (abs(u1 - mu) - 0.5) / math.sqrt(var)
+    return math.erfc(z / math.sqrt(2.0))
 
 
 # ----------------------------------------------------------------------------- data
@@ -118,6 +245,15 @@ def load():
                 r["has_ptc"] = (
                     (r["verdict_reason"] == "cds_intron" and r["ptc_source"] not in ("", "none"))
                     or r["verdict_reason"] in ("internal_exon", "last_exon"))
+                # A PTC the last-exon rule and the 50-nt rule both let through, i.e. one that is
+                # actually expected to trigger NMD. has_ptc is deliberately wider: it counts a
+                # stop in the last exon too, where there is no downstream junction and NMD is not
+                # expected. Panels that ask "does making a PTC change the CHX response" want this
+                # narrower flag; panels that ask "where do stops appear" want has_ptc.
+                #
+                # Never use `not nmd_ptc` to build a no-PTC control group: a barcode with a PTC
+                # that fails the 50-nt rule would land in it. `not has_ptc` is the control.
+                r["nmd_ptc"] = r["has_ptc"] and r["nmd_expected"] == "1"
                 rows.append(r)
         data[lib] = rows
     return data
@@ -241,9 +377,11 @@ def binned(ax, xs, ys, nbins, color, label=None, band=True):
         ns.append(len(chunk))
     if band:
         ax.fill_between(cx, lo, hi, color=color, alpha=0.15, linewidth=0)
-    ax.plot(cx, cm, color=color, linewidth=2, marker="o", markersize=4,
-            markeredgecolor="#fcfcfb", markeredgewidth=0.8, label=label)
-    return ns
+    ax.plot(cx, cm, color=color, linewidth=1.4, marker="o", markersize=3,
+            markeredgecolor="#fcfcfb", markeredgewidth=0.7, label=label)
+    # The bin centres and medians come back so a caller can label the end of the line instead of
+    # putting a legend box on top of the data. No caller used the old return value.
+    return cx, cm, ns
 
 
 # ----------------------------------------------------------------------------- figures
@@ -303,34 +441,68 @@ def fig01b_loc_counts(data):
 
 
 def fig01c_position_landscape(data):
-    """Where integrations land along a gene, with every gene rescaled to 0..1 so genes of different
-    length and exon count can be pooled. Top row: along the gene as it sits in the genome. Bottom
-    row: along the mature mRNA -- for an intronic hit that position is the junction the cassette
-    splices into, since the intron itself is not in the mRNA. A flat line at 1.0 is what a uniform
-    landscape would give."""
-    fig, axes = plt.subplots(2, 2, figsize=(9.5, 5.2), sharex=True, sharey="row")
+    """Where integrations land along a gene, every gene rescaled to 0..1 so genes of different
+    length and exon count pool together. 20 equal bins.
+
+    Top row: along the gene as it sits in the genome. Bottom row: along the mature mRNA -- for an
+    intronic hit that is the junction the cassette splices into, since the intron itself is not in
+    the mRNA. The dotted line at 1.0 is what a uniform landscape would give.
+
+    No legend box anywhere. Each series is named where it is drawn, in its own colour, next to the
+    count for THAT panel -- which is the point: the two libraries do not share those counts, so one
+    legend for the figure would be wrong, and four legend boxes were just four copies of the same
+    two words."""
+    fig, axes = plt.subplots(2, 2, figsize=(COL2, 88 * MM), sharex=True, sharey="row")
+    fig.subplots_adjust(left=0.085, right=0.895, top=0.935, bottom=0.165, hspace=0.30, wspace=0.11)
     bins = [i / 20 for i in range(21)]
-    rows_spec = [("relgene", "along the gene (genomic span)"),
-                 ("relpos", "along the mature mRNA")]
-    for row, (key, title) in enumerate(rows_spec):
-        for col, (lib, _) in zip(range(2), LIBS):
+    rows_spec = [("relgene", "along the gene\n(genomic span)"),
+                 ("relpos", "along the\nmature mRNA")]
+    series = (("all integrations", lambda r: True, GREY),
+              ("expressed only", lambda r: r["lfc"] is not None, ORANGE))
+    print("  fig01c: integrations per panel")
+    for row, (key, strip) in enumerate(rows_spec):
+        for col, (lib, _) in enumerate(LIBS):
             ax = axes[row][col]
             base = [r for r in data[lib] if r["in_gene"] == "1" and r.get(key) is not None]
-            for label, sel, col_ in (("all integrations", lambda r: True, GREY),
-                                     ("expressed only", lambda r: r["lfc"] is not None, ORANGE)):
+            for k, (label, sel, colour) in enumerate(series):
                 v = [r[key] for r in base if sel(r)]
-                ax.hist(v, bins=bins, density=True, histtype="step", linewidth=2, color=col_,
-                        label="%s (n=%d)" % (label, len(v)))
-            ax.axhline(1.0, color=INK2, linewidth=0.9, linestyle=":")
-            ax.set_title("%s — %s" % (lib, title), fontsize=9)
-            tidy(ax)
-            if row == 1:
-                ax.set_xlabel("relative position: 0 = 5' end, 1 = 3' end")
+                ax.hist(v, bins=bins, density=True, histtype="step", linewidth=1.1,
+                        color=colour, zorder=2)
+                # Named once per column, in the top row only: an in-gene barcode always has both
+                # relgene and relpos, so the bottom row is the same barcodes and the same counts,
+                # and repeating them would be four labels carrying two facts.
+                if row == 0:
+                    ax.text(0.975, 0.95 - 0.105 * k,
+                            "%s   n = %s" % (label, format(len(v), ",")),
+                            transform=ax.transAxes, ha="right", va="top",
+                            fontsize=FS_SMALL, color=colour)
+                print("    %-8s %-22s %-18s n = %s" % (lib, key, label, format(len(v), ",")))
+            ax.axhline(1.0, color=INK2, linewidth=HAIR, linestyle=(0, (1, 2.5)), zorder=1)
+            journal(ax)
+            ax.set_xlim(0, 1)
+            ticks = [0, 0.2, 0.4, 0.6, 0.8, 1.0]
+            ax.set_xticks(ticks)
+            ax.set_xticklabels(["0", "0.2", "0.4", "0.6", "0.8", "1"])
+            x_rule(ax, ticks)
+            if row == 0:
+                ax.set_title(DISPLAY[lib], fontsize=FS, color=INK, pad=4)
             if col == 0:
-                ax.set_ylabel("density of integrations")
-            if row == 0 and col == 0:
-                ax.legend(fontsize=7.5, loc="upper right")
-    save(fig, "fig01c_position_landscape.png")
+                # Names the dotted reference once per row, at the left where both rows are empty.
+                ax.text(0.015, 1.0, "uniform", transform=ax.get_yaxis_transform(),
+                        ha="left", va="bottom", fontsize=FS_SMALL, color=INK2)
+            if col == 1:
+                # The row identity as a strip on the right, the way a facet label reads.
+                ax.text(1.035, 0.5, strip, transform=ax.transAxes, rotation=270,
+                        ha="left", va="center", fontsize=FS_SMALL, color=INK2,
+                        linespacing=1.35)
+    # Two separate texts, and they have to be far enough apart in FIGURE fraction: savefig runs
+    # with bbox="tight", which crops to the outermost ink, so two labels 0.02 apart on a 1,000 px
+    # canvas overlap in the output even though the margins look generous in the code.
+    fig.text(0.49, 0.058, "relative position along the gene: 0 = 5\u2032 end, 1 = 3\u2032 end",
+             ha="center", fontsize=FS, color=INK)
+    fig.text(0.012, 0.55, "density of integrations", rotation=90, va="center",
+             fontsize=FS, color=INK)
+    save(fig, "fig01c_position_landscape.png", vector=True)
 
 
 def fig02_ecdf(data):
@@ -389,7 +561,7 @@ def fig03_verdict(data):
 
 def fig04_ptc(data):
     """Panel 1G of the paper, so it follows the manuscript conventions rather than the defaults of
-    this script: the two constructs are labelled Regular / PCPA, every label is 6 pt, the figure is
+    this script: every label is 6 pt, the figure is
     laid out at its intended printed width so that 6 pt stays 6 pt on the page, and it is written
     as SVG and PDF next to the PNG.
 
@@ -483,23 +655,156 @@ def fig07_matched(data):
 
 
 def fig08_ptc_source(data):
-    fig, axes = plt.subplots(1, 2, figsize=(10.5, 3.0))
-    names = [("stop inside the insert\n(insert_5p)", "insert_5p"),
+    """Where the premature stop actually comes from, against the CHX response.
+
+    Restricted to PTCs expected to trigger NMD - the last-exon rule and the 50-nt rule both
+    applied. Note the selection also gained a PTC filter it never had: the rows used to be picked
+    on ptc_source alone, so a barcode with a source recorded but no PTC by verdict was counted.
+
+    Box: 25th to 75th percentile, black line the median. WHISKERS ARE THE 5th AND 95th
+    PERCENTILES, not 1.5 x IQR - a handful of barcodes past log2FC 10 would otherwise squash every
+    box into a sliver. That is stated on the figure, because a reader assumes Tukey.
+
+    Both panels share one x range, computed from the whisker ends of all eight boxes, so no tail is
+    clipped and the two libraries are directly comparable. The old version had xlim hardcoded to
+    (-3.5, 6.5) while the data ran to 12, which cut both ends of the CPA panel.
+
+    The four sources are an ordered series along the transcript, from a stop inside the insert to
+    reading through into the host, so they take one hue stepped light to dark rather than four
+    unrelated colours.
+
+    Each source is compared with the first one - a stop inside the insert, the canonical case and
+    by far the most common - with the same two-sided rank-sum test and the same bracket-and-star
+    notation fig1G uses, so the two panels can be read against each other. Expect mostly ns: the
+    part of the transcript the stop comes from turns out to matter little, which is itself the
+    result. Exact p values go to the console, for the caption."""
+    # host_insert_seam is left out on purpose. It is a real category - the stop codon sits astride
+    # the joint, its first bases the host's last and its final base the insert's first, most often
+    # host TA + insert G = TAG - but it holds 4 barcodes in each library, so its row was a median
+    # dot with no distribution behind it. Its absence should be stated in the caption rather than
+    # left to look like the category does not exist. insert_3p, host_upstream and the other _seam
+    # variants have zero NMD-competent barcodes and never had a row.
+    names = [("stop inside the insert", "insert_5p"),
              ("stop from the barcode", "barcode"),
-             ("stop on the host|insert\nseam", "host_insert_seam"),
-             ("read through, stop\nfound in the host", "host_downstream")]
+             ("read through, stop in the host", "host_downstream")]
+    MIN_BOX = 5
+    vals = {}
+    for lib, _ in LIBS:
+        rows = [r for r in expressed(data[lib]) if r["nmd_ptc"]]
+        vals[lib] = {key: [r["lfc"] for r in rows if r["ptc_source"] == key]
+                     for _, key in names}
+
+    # One range for both panels, from what is actually drawn: whisker ends where there is a box,
+    # the bare median where a group is too small for one.
+    ends = []
+    for lib, _ in LIBS:
+        for _, key in names:
+            v = vals[lib][key]
+            if len(v) >= MIN_BOX:
+                ends += [quantile(v, 0.05), quantile(v, 0.95)]
+            elif v:
+                ends.append(med(v))
+    lo, hi = min(ends), max(ends)
+    span = hi - lo
+    # The rule has to reach past the longest whisker, or the end of that whisker cannot be read
+    # off the scale. So the tick grid is chosen first, from the data, and the panel is then made
+    # wide enough to contain it - not the other way round, which is how the rule ended up stopping
+    # at 5 with whiskers running to 9.
+    lo_tick = 5 * math.floor(lo / 5)
+    hi_tick = 5 * math.ceil(hi / 5)
+    ticks = list(range(lo_tick, hi_tick + 1, 5))
+    n_x = lo - 0.26 * span                           # left strip holds the sample sizes
+    # Right strip: one spine per comparison, the taller bracket further out, exactly as in fig1G.
+    br_x = [hi + 0.05 * span, hi + 0.11 * span]
+    br_tick = 0.02 * span                            # arms reaching back towards the boxes
+    star_dx = 0.028 * span
+    xlim = (min(lo - 0.28 * span, lo_tick - 0.01 * span),
+            max(hi_tick + 0.01 * span, br_x[-1] + star_dx + 0.05 * span))
+
+    fig, axes = plt.subplots(1, 2, figsize=(COL2, 62 * MM), sharex=True, sharey=True)
+    # wspace has to clear two tick labels meeting head on: at 0.05 the right end of the left panel
+    # and the left end of the right one printed as "10-10".
+    fig.subplots_adjust(left=0.235, right=0.99, top=0.88, bottom=0.20, wspace=0.12)
+    print("  fig08: source of the PTC, NMD-expected only")
     for ax, (lib, _) in zip(axes, LIBS):
-        rows = expressed(data[lib])
-        groups, cols = [], []
-        for label, key in names:
-            v = [r["lfc"] for r in rows if r["ptc_source"] == key]
-            if len(v) >= 5:
-                groups.append((label, v))
-                cols.append(ORANGE)
-        box_groups(ax, groups, cols, ylabels=(ax is axes[0]))
-        ax.set_title(lib)
-        ax.tick_params(axis="y", labelsize=7.5)
-    save(fig, "fig08_ptc_source.png")
+        ref = vals[lib][names[0][1]]
+        # Every comparison of this library at once, so the correction can see the whole family
+        # before any of it is drawn.
+        raw = [mannwhitney(ref, vals[lib][key]) for _, key in names[1:]]
+        adj = holm([x if x is not None else 1.0 for x in raw])
+        adj = [a if r is not None else None for a, r in zip(adj, raw)]
+        ys, boxed = [], []
+        for i, (label, key) in enumerate(names):
+            y = len(names) - i                        # first name on top
+            v = vals[lib][key]
+            ys.append((y, label, key, v))
+            boxed.append(v if len(v) >= MIN_BOX else [])
+        bp = ax.boxplot([v if v else [0] for _, _, _, v in ys],
+                        positions=[y for y, _, _, _ in ys], vert=False, showfliers=False,
+                        whis=(5, 95), widths=0.52, patch_artist=True, zorder=3,
+                        medianprops=dict(color=INK, linewidth=1.1),
+                        whiskerprops=dict(color=INK2, linewidth=HAIR),
+                        capprops=dict(color=INK2, linewidth=HAIR),
+                        boxprops=dict(linewidth=HAIR))
+        for i, ((y, label, key, v), patch) in enumerate(zip(ys, bp["boxes"])):
+            stroke = SEQ_STROKE[i]
+            if len(v) >= MIN_BOX:
+                patch.set_facecolor(stroke)
+                patch.set_alpha(0.30)
+                patch.set_edgecolor(stroke)
+            else:
+                patch.set_visible(False)
+                bp["medians"][i].set_visible(False)
+                for k in ("whiskers", "caps"):
+                    bp[k][2 * i].set_visible(False)
+                    bp[k][2 * i + 1].set_visible(False)
+                if v:
+                    ax.plot([med(v)], [y], "o", markersize=4.5, color=stroke,
+                            markeredgecolor="#fcfcfb", markeredgewidth=0.8, zorder=4)
+            p = raw[i - 1] if i > 0 else None
+            p_adj = adj[i - 1] if i > 0 else None
+            mark = stars(p_adj, n_min=min(len(ref), len(v)), min_n=MIN_BOX) if i > 0 else ""
+            if i > 0 and mark:
+                # A vertical spine in the right strip, two short arms reaching back to the rows it
+                # joins, and the mark rotated to read along it. "ns" turns the other way and one
+                # point smaller: it is a word, so it has a reading direction, while a stack of
+                # asterisks looks the same either way - the same rule fig04_nature.R follows.
+                x = br_x[i - 1]
+                y_ref = len(names)
+                ax.plot([x, x], [y_ref, y], color=INK2, linewidth=HAIR, zorder=5)
+                for yy in (y_ref, y):
+                    ax.plot([x - br_tick, x], [yy, yy], color=INK2, linewidth=HAIR, zorder=5)
+                word = mark == "ns"
+                ax.text(x + star_dx, (y_ref + y) / 2, mark, rotation=-90 if word else 90,
+                        ha="center", va="center",
+                        fontsize=FS_SMALL - 1 if word else FS_SMALL, color=INK2)
+            print("    %-8s %-30s n = %-6s median %+6.3f   %s"
+                  % (lib, key, format(len(v), ","), med(v) if v else float("nan"),
+                     ("p = %.3g, Holm-adjusted %.3g  %s" % (p, p_adj, mark))
+                     if p is not None else "reference"))
+        ax.axvline(0, color=INK2, linewidth=HAIR, linestyle=(0, (1, 2.5)), zorder=1)
+        ax.set_title(DISPLAY[lib], fontsize=FS, color=INK, pad=4)
+        journal(ax)
+        ax.set_xlim(*xlim)
+        ax.set_ylim(0.45, len(names) + 0.75)
+        ax.set_yticks([])
+        ax.set_xticks(ticks)
+        x_rule(ax, ticks)
+        # Each panel carries its own counts, inside itself, in the empty room left of the
+        # whiskers. Putting the right panel's column outside its axes ran it into the left
+        # panel's stars.
+        for y, _, key, _ in ys:
+            ax.text(n_x, y, "n = %s" % format(len(vals[lib][key]), ","), ha="left",
+                    va="center", fontsize=FS_SMALL, color=INK2)
+
+    # The category names once, in the margin: they are shared by both panels.
+    for y, label, key, v in ys:
+        axes[0].annotate(label, xy=(0, y), xycoords=("axes fraction", "data"),
+                         xytext=(-7, 0), textcoords="offset points", ha="right", va="center",
+                         fontsize=FS, color=INK)
+    fig.text(0.62, 0.055, "log₂ fold change (CHX / EtOH)", ha="center",
+             fontsize=FS, color=INK)
+    save(fig, "fig08_ptc_source.png", vector=True)
 
 
 def fig09_frame(data):
@@ -644,23 +949,60 @@ def fig11d_position_control(data):
 
 
 def fig11_relpos(data):
-    fig, axes = plt.subplots(1, 2, figsize=(9, 3.2), sharey=True)
+    """Effect against POSITION IN THE mRNA -- not along the genomic locus.
+
+    The x variable is relpos = tx_pos / tx_len, both in transcript coordinates. The genomic
+    equivalent exists as relgene and is not used here; fig01c shows the two side by side, one per
+    row. For an insertion into an intron the transcript position is the splice junction the
+    cassette goes into, because the intron itself is not part of the mRNA.
+
+    Restricted to PTCs the last-exon rule and the 50-nt rule both let through, so "PTC" here means
+    a stop actually expected to trigger NMD. The control group is still `not has_ptc`, the wider
+    flag: a PTC that fails the 50-nt rule has a PTC and does not belong among the barcodes that
+    make none.
+
+    Each line is labelled at its own end rather than in a legend, so a label cannot land on the
+    data - which is what the legend box used to do."""
+    fig, axes = plt.subplots(1, 2, figsize=(COL2, 66 * MM), sharey=True)
+    fig.subplots_adjust(left=0.075, right=0.985, top=0.90, bottom=0.16, wspace=0.06)
+    series = (("PTC expected to trigger NMD", lambda r: r["nmd_ptc"], ORANGE),
+              ("no PTC created", lambda r: r["in_gene"] == "1" and not r["has_ptc"], BLUE))
+    print("  fig11_relpos: barcodes per series")
+    ends = []
     for ax, (lib, _) in zip(axes, LIBS):
         rows = [r for r in expressed(data[lib]) if r["relpos"] is not None]
-        for label, sel, col in (("PTC created", lambda r: r["has_ptc"], ORANGE),
-                                ("no PTC created (UTR)",
-                                 lambda r: r["in_gene"] == "1" and not r["has_ptc"], BLUE)):
+        for label, sel, colour in series:
             s = [r for r in rows if sel(r)]
-            if len(s) > 60:
-                binned(ax, [r["relpos"] for r in s], [r["lfc"] for r in s], 10, col,
-                       label="%s (n=%d)" % (label, len(s)), band=False)
-        ax.axhline(0, color=INK2, linewidth=0.9, linestyle=":")
-        ax.set_title(lib)
-        ax.set_xlabel("insertion point: 0 = 5' end, 1 = 3' end")
-        tidy(ax)
-        ax.legend(fontsize=7.5, loc="upper right")
-    axes[0].set_ylabel("median log2FC")
-    save(fig, "fig11_relpos.png")
+            if len(s) <= 60:
+                continue
+            cx, cm, _ = binned(ax, [r["relpos"] for r in s], [r["lfc"] for r in s], 10, colour,
+                               band=False)
+            ends.append((ax, "%s   n = %s" % (label, format(len(s), ",")), colour))
+            print("    %-8s %-28s n = %s" % (lib, label, format(len(s), ",")))
+        ax.axhline(0, color=INK2, linewidth=HAIR, linestyle=(0, (1, 2.5)), zorder=1)
+        ax.set_title(DISPLAY[lib], fontsize=FS, color=INK, pad=4)
+        journal(ax)
+        ax.set_xlim(-0.02, 1.02)
+        ticks = [0, 0.2, 0.4, 0.6, 0.8, 1.0]
+        ax.set_xticks(ticks)
+        ax.set_xticklabels(["0", "0.2", "0.4", "0.6", "0.8", "1"])
+        x_rule(ax, ticks)
+    # Labels go into a band above the data that is empty BY CONSTRUCTION - the y limit is set from
+    # the data first and the band added on top. Labelling the end of each line was tried and is
+    # wrong here: a right-aligned label runs back along its own rising curve.
+    ys = [y for ax in axes for l in ax.get_lines() if len(l.get_ydata()) > 2
+          for y in l.get_ydata()]
+    ylo, yhi = min(ys), max(ys)
+    rng = yhi - ylo
+    axes[0].set_ylim(ylo - 0.10 * rng, yhi + 0.46 * rng)
+    for ax in axes:
+        for k, (_, text, colour) in enumerate([e for e in ends if e[0] is ax]):
+            ax.text(0.015, 0.985 - 0.085 * k, text, transform=ax.transAxes,
+                    ha="left", va="top", fontsize=FS_SMALL, color=colour)
+    axes[0].set_ylabel("median log\u2082 fold change (CHX / EtOH)", fontsize=FS, color=INK)
+    fig.text(0.53, 0.035, "position in the mRNA: 0 = 5\u2032 end, 1 = 3\u2032 end",
+             ha="center", fontsize=FS, color=INK)
+    save(fig, "fig11_relpos.png", vector=True)
 
 
 def fig12_region_loc(data):

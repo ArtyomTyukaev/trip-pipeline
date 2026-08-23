@@ -27,7 +27,7 @@
 # TRUE below and the script also writes the PDF (real Helvetica, see the note at the device) and an
 # SVG. It is off because the PNG is what is being circulated at the moment.
 
-vector_out <- FALSE     # TRUE also writes the PDF and SVG of the same figure
+vector_out <- TRUE      # also writes the PDF and SVG of the same figure
 
 suppressPackageStartupMessages({
   library(ggplot2)
@@ -44,14 +44,17 @@ d <- read.delim(src, stringsAsFactors = FALSE)
 
 # Bottom-to-top order of the rows, and left-to-right order of the panels.
 grp_levels <- c("outside_gene", "no_ptc", "ptc")
-grp_labels <- c(outside_gene = "Outside a gene", no_ptc = "No PTC created", ptc = "PTC created")
+grp_labels <- c(outside_gene = "Outside a gene", no_ptc = "No PTC created",
+                ptc = "PTC expected to trigger NMD")
 d$group   <- factor(d$group, levels = grp_levels, labels = grp_labels[grp_levels])
-d$library_label <- factor(d$library_label, levels = c("Regular", "PCPA"))
+d$library_label <- factor(d$library_label, levels = c("5ss_noP", "CPA_noP"))
 
 # Fill is a pale tint of the outline colour: at 6 pt on a printed page a saturated fill fights the
 # median line, and the tint still separates the three groups in greyscale.
-stroke <- c("Outside a gene" = "#6f6f6a", "No PTC created" = "#2f6b2a", "PTC created" = "#3a2d85")
-fill   <- c("Outside a gene" = "#d8d8d5", "No PTC created" = "#b9dcb3", "PTC created" = "#c3bce2")
+# Keyed off grp_labels, not off literal strings: the third label changed once already, and a
+# hardcoded key silently becomes NA - which ggplot draws as a colourless box rather than an error.
+stroke <- setNames(c("#6f6f6a", "#2f6b2a", "#3a2d85"), grp_labels[grp_levels])
+fill   <- setNames(c("#d8d8d5", "#b9dcb3", "#c3bce2"), grp_labels[grp_levels])
 
 # Whiskers are the 5th and 95th percentiles, not 1.5 IQR: a few barcodes sit near log2FC 12 and the
 # full range would squash every box. geom_boxplot(stat = "identity") draws exactly these five
@@ -63,16 +66,121 @@ stats <- do.call(rbind, lapply(split(d, list(d$library_label, d$group), drop = T
              upper = q(s$lfc, 0.75), ymax = q(s$lfc, 0.95), n = nrow(s))
 }))
 
-# Axis range from the whiskers themselves, so no tail is clipped, plus a narrow strip on the right
-# where the sample sizes line up as a column. Breaks stop at the data, so the added strip does not
-# grow a run of empty ticks.
-lo <- min(stats$ymin); hi <- max(stats$ymax)
-pad <- 0.04 * (hi - lo)
-xlim <- c(lo - pad, hi + pad + 0.13 * (hi - lo))
-n_x <- xlim[2]
+# Wilcoxon rank-sum tests: group 1 against group 2, and group 1 against group 3, where the groups
+# are numbered AS THE FIGURE READS - top to bottom. So group 1 is the top row, "PTC expected to
+# trigger NMD", and it is the baseline both comparisons are made against.
+#
+# Note this is the reverse of grp_levels, which is written bottom-to-top because that is the order
+# ggplot lays a discrete y axis out in. Reading the numbering off the factor instead of off the
+# printed figure put the baseline on "Outside a gene" once already.
+#
+# Two-sided and unpaired (wilcox.test's defaults), computed per library on the raw per-barcode
+# log2FC, not on the five summary numbers the boxes are drawn from.
+#
+# With n in the thousands R uses the normal approximation with a continuity correction rather than
+# the exact distribution. That is the intended behaviour and the reason for suppressWarnings, which
+# silences only the "cannot compute exact p-value with ties" note.
+n_grp <- length(grp_levels)
+ref_g <- n_grp                       # top row of the figure = last factor level
+other_g <- c(n_grp - 1L, n_grp - 2L) # the 2nd and 3rd rows from the top
+tests <- do.call(rbind, lapply(levels(d$library_label), function(lib) {
+  do.call(rbind, lapply(other_g, function(g) {
+    a <- d$lfc[d$library_label == lib & d$group == levels(d$group)[ref_g]]
+    b <- d$lfc[d$library_label == lib & d$group == levels(d$group)[g]]
+    w <- suppressWarnings(stats::wilcox.test(a, b))
+    # lo_g / hi_g are the bracket's ends in plotting coordinates, so they are sorted; ref_g and g
+    # say which side is the baseline, which is what the console line reports.
+    data.frame(library_label = lib, ref_g = ref_g, other_g = g,
+               lo_g = min(ref_g, g), hi_g = max(ref_g, g), p = w$p.value)
+  }))
+}))
+tests$library_label <- factor(tests$library_label, levels = levels(d$library_label))
 
+# Holm-Bonferroni WITHIN each library. The family is the set of comparisons against the shared
+# baseline of one experiment; ave() splits on library_label so 5ss_noP and CPA_noP are corrected
+# independently of each other. They are different constructs on different barcodes - separate
+# experiments, not two looks at one question - so a family spanning both would make each penalise
+# the other. Holm rather than plain Bonferroni: same guarantee on the family-wise error rate,
+# uniformly more powerful, no reason to prefer the weaker one.
+tests$p_adj <- ave(tests$p, tests$library_label,
+                   FUN = function(v) p.adjust(v, method = "holm"))
+
+# Stars, not the number itself. The ladder is ns / * / ** / *** / **** at 0.05 / 0.01 / 0.001 /
+# 0.0001 - it is NOT the count of decimals of p, and it saturates at four, so 5.8e-42 and 9.0e-57
+# both print "****". The exact values therefore have to travel in the caption, which is what the
+# console output below is for.
+#
+# Its weak point is on show here: 5ss_noP's first comparison is p = 0.05003, which prints "ns"
+# while 0.0499 would print "*", and nothing in the data separates those two numbers. That is the
+# reason for printing the exact p rather than only drawing the star.
+#
+# The star is read off the ADJUSTED p, so what the figure marks is what survives the correction.
+fmt_star <- function(p) {
+  if (!is.finite(p)) return("")
+  if (p < 1e-4) return("****")
+  if (p < 1e-3) return("***")
+  if (p < 1e-2) return("**")
+  if (p < 0.05) return("*")
+  "ns"
+}
+tests$label <- vapply(tests$p_adj, fmt_star, character(1))
+cat("  Wilcoxon rank-sum, two-sided; Holm-adjusted within each library - for the caption:\n")
+for (i in seq_len(nrow(tests))) {
+  cat(sprintf("    %-8s %-28s vs %-28s p = %.3g, adjusted %.3g   %s\n",
+              as.character(tests$library_label[i]),
+              levels(d$group)[tests$ref_g[i]], levels(d$group)[tests$other_g[i]],
+              tests$p[i], tests$p_adj[i], tests$label[i]))
+}
+
+# Axis range from the whiskers themselves, so no tail is clipped, plus two strips on the right: the
+# sample sizes as a column, then the comparison brackets with their p-values. Breaks stop at the
+# data, so the added strips do not grow a run of empty ticks.
+lo <- min(stats$ymin); hi <- max(stats$ymax)
+span <- hi - lo
+pad <- 0.04 * span
 pt <- 0.3527777778   # mm per pt: ggplot linewidth is mm, font size is mm of cap height
 hair <- 0.25 * pt    # 0.25 pt hairline
+# Two strips, both INSIDE the panel. The sample sizes go left, where the boxes leave room, because
+# each library has its own and a single column outside the first panel would lose the second one's.
+# The stars go right; being four characters at most they need a fraction of the room "P = 5.8 x
+# 10^-42" did, which is why the panel no longer runs far past its own scale.
+n_x <- lo - 0.24 * span
+br_x <- c(hi + 0.05 * span, hi + 0.10 * span)     # one x per comparison, the wider one further out
+br_tick <- 0.02 * span                            # short arms reaching back towards the boxes
+# The stars are set rotated, so the right pad only has to clear the height of a line of 6 pt type
+# rather than the width of four characters.
+xlim <- c(lo - 0.30 * span, hi + 0.16 * span)
+
+# The taller bracket sits further out, whichever direction it points.
+tests$x <- br_x[tests$hi_g - tests$lo_g]
+# Midpoint of the bracket.
+tests$y <- (tests$lo_g + tests$hi_g) / 2
+
+# How each label is set, carried as three more columns of `tests` rather than as a second geom_text
+# over half the rows: the layer already draws one label per row, so a hardcoded split would be one
+# more place to keep in step every time the labels or the brackets change.
+#
+# Only "ns" is turned the other way. A stack of asterisks is one glyph repeated along the baseline
+# and reads identically whichever end is up, so flipping it would buy nothing and would only make
+# the two brackets of a panel disagree with each other; "ns" is a word and does have a reading
+# direction, and -90 (top-to-bottom) is the direction the eye takes down a vertical label. The test
+# is on the label itself rather than on which comparison the row is, so if a p-value moves and this
+# bracket becomes a star it picks up the stars' setting on its own and nothing here has to follow.
+star_only <- grepl("^\\*+$", tests$label)
+tests$lab_angle <- ifelse(star_only, 90, -90)
+# "ns" is the null result and has no business being the loudest thing in the strip, so it is set a
+# point smaller, and it sits closer to its own spine. Turned, the label is only as wide as the
+# letters are tall - 0.97 mm at 5 pt - so 0.018 of the span puts it a fifth of a millimetre off its
+# own bracket, near enough to read as belonging to it, and still more than a millimetre clear of the
+# taller bracket's spine, which the old 0.035 offset at 6 pt ran into.
+tests$lab_size <- ifelse(star_only, 6, 5) * pt
+tests$lab_x <- tests$x + ifelse(star_only, 0.035, 0.018) * span
+
+# The sample sizes, one row per library and group, placed inside the panel that owns them.
+sizes <- stats[, c("library_label", "group", "n")]
+
+# The breaks, computed before the plot so the x rule can be clipped to them.
+brk <- seq(2 * ceiling((lo - pad) / 2), 2 * floor((hi + pad) / 2), 2)
 
 p <- ggplot(stats, aes(y = group)) +
   # No change at zero is the comparison the whole panel is about, so the reference line is drawn
@@ -85,12 +193,37 @@ p <- ggplot(stats, aes(y = group)) +
   geom_segment(aes(x = middle, xend = middle,
                    y = as.numeric(group) - 0.275, yend = as.numeric(group) + 0.275),
                colour = "black", linewidth = 0.6 * pt) +
-  geom_text(aes(x = n_x, label = paste0("n = ", format(n, big.mark = ",", trim = TRUE))),
-            hjust = 1, vjust = -1.15, size = 6 * pt, colour = "grey35") +
+  geom_text(data = sizes, inherit.aes = FALSE,
+            aes(x = n_x, y = group,
+                label = paste0("n = ", format(n, big.mark = ",", trim = TRUE))),
+            hjust = 0, size = 5.5 * pt, colour = "grey45") +
+  # The x axis drawn as data, not as axis.line.x: the theme's rule spans the whole panel and would
+  # run out into the two annotation strips. A scale has to stop where its numbers stop.
+  annotate("segment", x = min(brk), xend = max(brk), y = -Inf, yend = -Inf,
+           colour = "black", linewidth = hair, lineend = "square") +
+  # The two comparison brackets: a vertical spine at its own x, two short arms reaching back
+  # towards the rows it joins, and the p-value beside it. Drawn from `tests`, so the bracket and
+  # the number can never disagree about which pair they refer to.
+  geom_segment(data = tests, inherit.aes = FALSE,
+               aes(x = x, xend = x, y = lo_g, yend = hi_g),
+               colour = "grey35", linewidth = hair) +
+  geom_segment(data = tests, inherit.aes = FALSE,
+               aes(x = x, xend = x - br_tick, y = lo_g, yend = lo_g),
+               colour = "grey35", linewidth = hair) +
+  geom_segment(data = tests, inherit.aes = FALSE,
+               aes(x = x, xend = x - br_tick, y = hi_g, yend = hi_g),
+               colour = "grey35", linewidth = hair) +
+  # Rotated to read along its own bracket. It also costs almost no horizontal room, which is why
+  # the panel no longer needs a wide strip on the right. Angle, size and x come from the row (see
+  # where `tests` gets them), so the two labels can be set differently in one layer.
+  geom_text(data = tests, inherit.aes = FALSE,
+            aes(x = lab_x, y = y, label = label, angle = lab_angle, size = lab_size),
+            hjust = 0.5, vjust = 0.5, colour = "grey35") +
   scale_fill_manual(values = fill) +
   scale_colour_manual(values = stroke) +
-  scale_x_continuous(breaks = seq(2 * ceiling((lo - pad) / 2), 2 * floor((hi + pad) / 2), 2),
-                     expand = c(0, 0)) +
+  # `size` is already in the mm ggplot wants, so it is passed through rather than scaled.
+  scale_size_identity() +
+  scale_x_continuous(breaks = brk, expand = c(0, 0)) +
   coord_cartesian(xlim = xlim, clip = "off") +
   facet_wrap(~ library_label, nrow = 1) +
   labs(x = expression(log[2] * " fold change (CHX/EtOH)"), y = NULL) +
@@ -99,7 +232,7 @@ p <- ggplot(stats, aes(y = group)) +
     legend.position = "none",
     strip.background = element_blank(),
     strip.text = element_text(size = 6, hjust = 0, margin = margin(b = 1.5, unit = "mm")),
-    axis.line.x = element_line(colour = "black", linewidth = hair, lineend = "square"),
+    axis.line.x = element_blank(),      # drawn as an annotate() segment, clipped to the breaks
     axis.line.y = element_blank(),
     axis.ticks.x = element_line(colour = "black", linewidth = hair),
     axis.ticks.y = element_blank(),
@@ -110,9 +243,11 @@ p <- ggplot(stats, aes(y = group)) +
     plot.margin = margin(1.5, 2, 1, 1, unit = "mm")
   )
 
-# 140 mm rather than the full 183 mm double-column measure: three boxes and three short labels do
-# not fill 183 mm, and stretching them there is the empty-panel look Nature figures avoid.
-w_mm <- 140; h_mm <- 40
+# 183 mm, the full double-column measure. It used to be 140 mm on the argument that three boxes and
+# three short labels do not fill 183 mm and stretching them there gives the empty-panel look Nature
+# figures avoid. The comparison brackets and their p-values added a strip of real content on the
+# right of each panel, so the width is now earned rather than padding.
+w_mm <- 183; h_mm <- 40
 w_in <- w_mm / 25.4; h_in <- h_mm / 25.4
 dir.create(pics, showWarnings = FALSE, recursive = TRUE)
 out <- file.path(pics, "fig1G_ptc_yesno")

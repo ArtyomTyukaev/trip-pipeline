@@ -20,10 +20,22 @@ sys.path.insert(0, HERE)
 
 from make_figures import DISPLAY, LIBS, expressed, load   # noqa: E402
 
-# Same three groups as fig04_ptc(), in the same bottom-to-top order.
+# The three groups of the fig1G panel, in bottom-to-top order.
+#
+# The PTC group is `nmd_ptc`, so it holds only stops the last-exon rule and the 50-nt rule both let
+# through - the ones actually expected to trigger NMD.
+#
+# The control group deliberately stays on `not has_ptc`, the WIDER flag, and not on `not nmd_ptc`.
+# The difference matters: a barcode whose PTC fails the 50-nt rule has a PTC, so `not nmd_ptc`
+# would file it among the barcodes that make none and quietly contaminate the control with the very
+# thing being tested. Those barcodes are simply dropped from the panel instead - 45 of 2,979 in
+# 5ss_noP and 63 of 3,847 in CPA_noP, which is why the medians barely move.
+#
+# fig04_ptc() in make_figures.py still draws the wider `has_ptc` version; the two panels answer
+# slightly different questions and both are worth keeping.
 GROUPS = [("outside_gene", "Outside a gene", lambda r: r["category"] == "2"),
           ("no_ptc", "No PTC created", lambda r: r["in_gene"] == "1" and not r["has_ptc"]),
-          ("ptc", "PTC created", lambda r: r["has_ptc"])]
+          ("ptc", "PTC expected to trigger NMD", lambda r: r["nmd_ptc"])]
 
 
 def main():
