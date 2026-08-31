@@ -7,6 +7,9 @@ of the single features in the group.
 
 Group SHAP values were calculated only for 200 barcodes with 50 background barcodes for each one because of high computational complexity.
 
+**UPD**: NMD was deleted from features for intron_splicig prediction
+
+
 ## Which features are in which group
 
 There are **17 groups and 60 features**
@@ -41,6 +44,7 @@ Three groups disappear completely: `intron_annotations`, `mane_expression` and `
 `gene_annotations`, shrinks from 7 features to 3.
 
 That leaves **14 groups and 51 features**.
+
 
 ## The eight introns
 

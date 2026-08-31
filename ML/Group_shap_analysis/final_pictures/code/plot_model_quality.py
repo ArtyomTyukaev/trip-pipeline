@@ -1,9 +1,9 @@
 """
 Do the models work at all — one metric per task, TRAIN against TEST, all 36 models.
 
-    python analysis/group_shap/plotting/plot_model_quality.py
+    python analysis/group_shap/code/plots/plot_model_quality.py
 
-Пишет в `--outdir` (по умолчанию `analysis/group_shap/figures/`):
+Пишет в `--outdir` (по умолчанию `analysis/group_shap/pictures/`):
 
     model_quality_regression.png      коэффициент Спирмена
     model_quality_classification.png  ROC AUC
@@ -84,11 +84,16 @@ import matplotlib.pyplot as plt                                            # noq
 from matplotlib.transforms import blended_transform_factory                # noqa: E402
 from group_shap_shares import (ANALYSIS, DATASETS, FIGURES, FS, FS_SMALL,  # noqa: E402
                                GRID, HAIR, INK, INK_SOFT, MM, MUTED, SURFACE, save)
+sys.path.insert(0, ANALYSIS)
+from group_labels import table_label, dataset_label
 
 sys.path.insert(0, ANALYSIS)
 from experiment_labels import label, order                                 # noqa: E402
 
-GROUP_SHAP = os.path.dirname(HERE)
+# Файл лежит на два уровня ниже корня `group_shap` (code/plots/), поэтому корень
+# берётся ДВУМЯ dirname, а не одним. Каждый скрипт считает его сам, так что при
+# следующем переезде править придётся здесь же.
+GROUP_SHAP = os.path.dirname(os.path.dirname(HERE))
 RAW = os.path.join(GROUP_SHAP, "data", "raw")
 
 # Зелёный intragenic / фиолетовый intergenic — постоянная пара проекта.
@@ -101,7 +106,10 @@ SPEC = {
     # «ROC AUC» без уточнения: у бинарных датасетов weighted совпадает с обычным AUC, поэтому
     # подпись верна для всех трёх, а слово weighted на оси только отвлекало бы.
     "classification": dict(train="TRAIN_roc_auc_weighted", test="TEST_roc_auc_weighted",
-                           axis="ROC AUC", lo=0.45, hi=1.0, floor=0.5,
+                           # Ось начинается ровно с 0.5 - уровня незнания. Ниже него значений нет
+                           # (минимум по всем 36 моделям 0.587), а место левее 0.5 не несёт смысла.
+                           # `floor` снят: линия совпала бы с самим краем оси.
+                           axis="ROC AUC", lo=0.5, hi=1.0, floor=None,
                            ticks=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0]),
 }
 
@@ -111,7 +119,7 @@ SPEC = {
 WIDTH_MM = 108         # две картинки встают рядом в одну строку документа
 LANE_H = 0.155         # дюймов на дорожку
 BLOCK_GAP = 1.5        # между intragenic и intergenic ОДНОГО датасета: строка под тип таблицы
-DATASET_GAP = 3.0      # между датасетами: строка под тип таблицы плюс строка под имя датасета
+DATASET_GAP = 3.6      # между датасетами: строка под тип таблицы плюс строка под имя датасета
 HEADROOM = 3.9         # дорожек сверху: train / test стоят ВЫШЕ имени первого датасета
 
 # Подписи train / test подняты над строкой с именем датасета. Горизонтально они не пересекаются
@@ -129,13 +137,26 @@ WHITE = "#ffffff"
 LINE_W = 0.65          # толщина отрезка train↔test
 DOT_S = 7.0            # площадь маркера, pt^2
 DOT_EDGE_W = 0.65      # обводка полого маркера
-LEFT_IN = 0.94         # дюймов слева: держит имена генов, типы таблиц и имя датасета
+LEFT_IN = 1.00         # дюймов слева: держит имена генов, типы таблиц и имя датасета
                        # (при 0.86 `single_combined` заходил на график на 7.8 px — поймано
                        # проверкой в конце draw(), а не глазами)
 HEAD_INSET_IN = 0.04   # отступ заголовков блока от левого края холста
 RIGHT_IN = 0.30        # дюймов справа под колонку Δ
 TOP_IN = 0.26          # дюймов сверху под заголовок картинки
 BOTTOM_IN = 0.34       # дюймов снизу под подпись оси
+
+
+def wrap_words(text, width):
+    """Перенос по словам под заданную ширину в знаках. Нужен подписям, которые выросли."""
+    lines, current = [], ""
+    for word in text.split():
+        if current and len(current) + 1 + len(word) > width:
+            lines.append(current); current = word
+        else:
+            current = word if not current else current + " " + word
+    if current:
+        lines.append(current)
+    return "\n".join(lines)
 
 
 def load(task):
@@ -277,7 +298,8 @@ def draw(task, frame, outdir):
     heads = []
     for table_type, start in marks:
         heads.append(ax.annotate(
-            table_type, xy=(left, start - 0.55), xycoords=at_labels, ha="left", va="bottom",
+            table_label(table_type), xy=(left, start - 0.55), xycoords=at_labels,
+            ha="left", va="bottom",
             fontsize=FS_SMALL, color=TABLE_COLOUR[table_type], annotation_clip=False))
 
     # Имя датасета — ОДИН раз на пару таблиц, чёрным жирным по центру оси. Раньше оно повторялось в
@@ -292,8 +314,11 @@ def draw(task, frame, outdir):
     # `context/other/Arial.ttf` весом 400, matplotlib на запрос bold молча отдаёт тот же Regular,
     # а настоящего Arial Bold и метрически совместимого Liberation Sans Bold на машине нет.
     for dataset, start in dataset_marks:
+        # Имя датасета словами и в две строки: `Single-exon expression prediction` одной строкой
+        # в поле шириной под `PACRGL Control` не помещается ни при каком разумном поле.
         heads.append(ax.annotate(
-            dataset, xy=(left, start - 1.50), xycoords=at_labels, ha="left", va="bottom",
+            wrap_words(dataset_label(dataset), 21), xy=(left, start - 2.10), xycoords=at_labels,
+            ha="left", va="bottom", linespacing=1.15,
             fontsize=FS, color=INK, annotation_clip=False))
 
     # Утверждение, а не надежда: заголовок обязан кончаться левее оси. Ширина текста зависит от

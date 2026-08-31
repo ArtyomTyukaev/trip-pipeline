@@ -1,6 +1,6 @@
 # Код финальных графиков — это СНИМОК, а не рабочая копия
 
-Здесь лежат скрипты, которыми нарисованы картинки из `../` и `../../SHAP_ANALYSY.md`,
+Здесь лежат скрипты, которыми нарисованы картинки из `../` (final_pictures) и `../../SHAP_ANALYSIS.md`,
 скопированные **2026-08-31**.
 
 **Правка файла в этой папке ничего не меняет.** Ни один из них отсюда не запускается: пути внутри
@@ -11,12 +11,12 @@
 
 | файл здесь | канонический путь | что рисует |
 |---|---|---|
-| `plot_group_shap_heatmap.py` | `analysis/group_shap/plotting/` | 12 хитмапов |
-| `plot_group_shap_budget.py` | `analysis/group_shap/plotting/` | `group_shap_budget` |
-| `plot_group_shap_budget_by_experiment.py` | `analysis/group_shap/plotting/` | разбивка по экспериментам |
-| `plot_model_quality.py` | `analysis/group_shap/plotting/` | две картинки качества |
-| `plot_group_shap_exp_vs_splicing.py` | `analysis/group_shap/plotting/` | скаттер, драйвер |
-| `group_shap_shares.py` | `analysis/group_shap/plotting/` | загрузка `data/`, палитра, `save()` |
+| `plot_group_shap_heatmap.py` | `analysis/group_shap/code/plots/` | 12 хитмапов |
+| `plot_group_shap_budget.py` | `analysis/group_shap/code/plots/` | `group_shap_budget` |
+| `plot_group_shap_budget_by_experiment.py` | `analysis/group_shap/code/plots/` | разбивка по экспериментам |
+| `plot_model_quality.py` | `analysis/group_shap/code/plots/` | две картинки качества |
+| `plot_group_shap_exp_vs_splicing.py` | `analysis/group_shap/code/plots/` | скаттер, драйвер |
+| `group_shap_shares.py` | `analysis/group_shap/code/plots/` | загрузка `data/`, палитра, `save()` |
 | `plot_exp_vs_splicing.py` | **`analysis/group_ablation/plotting/`** | скаттер, сама отрисовка |
 
 Последний живёт в другом подпроекте: `draw()` общая с ablation-версией картинки, и это сделано
@@ -32,20 +32,20 @@
 `settings/custom_functions/shap_heatmaps{,_vertical}.py`. Полная копия означала бы продублировать
 половину проекта, и эта половина немедленно начала бы расходиться с оригиналом.
 
-## Как перерисовать всё из `../`
+## Как перерисовать всё из `../` (final_pictures)
 
 Из корня `TRIP_SCRIPTS`, окружение `TRIPml`:
 
 ```bash
 G=analysis/group_shap
-python $G/plotting/plot_group_shap_heatmap.py               --outdir $PWD/$G/figures
-python $G/plotting/plot_group_shap_budget.py                --outdir $PWD/$G/figures
-python $G/plotting/plot_group_shap_budget_by_experiment.py  --outdir $PWD/$G/figures --fixed-order
-python $G/plotting/plot_model_quality.py                    --outdir $PWD/$G/figures
-python $G/plotting/plot_group_shap_exp_vs_splicing.py       --outdir $PWD/$G/figures --regression-only
+python $G/code/plots/plot_group_shap_heatmap.py               --outdir $PWD/$G/pictures
+python $G/code/plots/plot_group_shap_budget.py                --outdir $PWD/$G/pictures
+python $G/code/plots/plot_group_shap_budget_by_experiment.py  --outdir $PWD/$G/pictures --fixed-order
+python $G/code/plots/plot_model_quality.py                    --outdir $PWD/$G/pictures
+python $G/code/plots/plot_group_shap_exp_vs_splicing.py       --outdir $PWD/$G/pictures --regression-only
 ```
 
-Затем скопировать нужные файлы в `../`. Данные читаются из `analysis/group_shap/data/`
+Затем скопировать нужные файлы в `../` (final_pictures). Данные читаются из `analysis/group_shap/data/`
 (прогон 2026-08-30, 72 модели); переменная `GROUP_SHAP_DATA` позволяет указать другую папку.
 
 ## Два флага, добавленные ради этих картинок

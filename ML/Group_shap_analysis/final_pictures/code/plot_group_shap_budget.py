@@ -1,9 +1,9 @@
 """
 What the models rely on when the group is ONE PLAYER — the whole group Shapley budget.
 
-    python analysis/group_shap/plotting/plot_group_shap_budget.py
+    python analysis/group_shap/code/plots/plot_group_shap_budget.py
 
-Writes `group_shap_budget.png` / `.pdf` into `--outdir` (default `analysis/group_shap/figures/`).
+Writes `group_shap_budget.png` / `.pdf` into `--outdir` (default `analysis/group_shap/pictures/`).
 
 One horizontal stacked bar per chain, twelve in all, each summing to 1. It is the deliberate
 counterpart of `group_ablation/figures/group_budget.png` - same layout, same palette, same
@@ -48,11 +48,14 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-import matplotlib.pyplot as plt                                            # noqa: E402
+import matplotlib.pyplot as plt
+from matplotlib.transforms import blended_transform_factory                                            # noqa: E402
 from matplotlib.patches import Patch                                       # noqa: E402
-from group_shap_shares import (DATASETS, FIGURES, FS, FS_SMALL, GRID, GROUP_COLORS, HAIR,  # noqa: E402
+from group_shap_shares import (ANALYSIS, DATASETS, FIGURES, FS, FS_SMALL, GRID, GROUP_COLORS, HAIR,  # noqa: E402
                           INK, INK_SOFT, MM, SURFACE, TABLE_TYPES, TASKS, ink_on,
                           load_gshap, mean_group_share, members_label, save)
+sys.path.insert(0, ANALYSIS)
+from group_labels import group_label, table_label, dataset_label, task_label
 
 ROW_H = 0.235       # inches of figure height per bar
 BLOCK_GAP = 0.55    # extra rows of blank between two datasets
@@ -106,7 +109,10 @@ def plot(bars, datasets, outdir, fixed_order=False):
     fig = plt.figure(figsize=(183 * MM, fig_h))
     # 0.760 and not 0.775: the last x tick label is centred on the axis end, so half of "100" hangs
     # past it and the figure would no longer be the 183 mm it says it is.
-    ax = fig.add_axes([0.215, 0.80 / fig_h, 0.760, 1 - 1.20 / fig_h])
+    # 0.300, было 0.215. Подписи слева выросли с `regression · intragenic` (23 знака) до
+    # `Regression · Outside MANE genes` (31), а левее них ещё стоит повёрнутое имя датасета,
+    # которое тоже стало длиннее. Ширина оси уменьшена на столько же, чтобы холст остался 183 мм.
+    ax = fig.add_axes([0.300, 0.80 / fig_h, 0.675, 1 - 1.20 / fig_h])
 
     segments = []
     for bar, yy in zip(bars, y):
@@ -127,7 +133,8 @@ def plot(bars, datasets, outdir, fixed_order=False):
                   fontsize=FS)
     ax.set_ylim(max(y) + 0.75, min(y) - 0.75)
     ax.set_yticks(y)
-    ax.set_yticklabels(["%s · %s" % (b["task"], b["table_type"]) for b in bars])
+    ax.set_yticklabels(["%s · %s" % (task_label(b["task"]), table_label(b["table_type"]))
+                        for b in bars])
     ax.tick_params(direction="out", length=2.2, width=HAIR, colors=INK, labelsize=FS, pad=2)
     ax.tick_params(axis="y", length=0, colors=INK_SOFT, labelsize=FS_SMALL)
     for side in ("top", "right", "left"):
@@ -140,11 +147,24 @@ def plot(bars, datasets, outdir, fixed_order=False):
 
     for cut in cuts:
         ax.axhline(cut, xmin=-0.28, xmax=1.0, color=GRID, linewidth=HAIR, zorder=1, clip_on=False)
+    # Имя датасета ставится по ИЗМЕРЕННОМУ левому краю подписей оси, а не по зашитой координате:
+    # подписи выросли, и прежняя константа -0.235 загнала имя прямо на них. `ha="right"` прижимает
+    # повёрнутый текст к этому краю, поэтому длина имени влияет на его ширину, а не на положение.
+    fig.canvas.draw()
+    inverse = fig.transFigure.inverted()
+    label_edge = min(inverse.transform((t.get_window_extent().x0, 0))[0]
+                     for t in ax.get_yticklabels()) - 0.012
+
     for dataset in datasets:
         block = [yy for yy, b in zip(y, bars) if b["dataset"] == dataset]
-        ax.text(-0.235, float(np.mean(block)), "%s" % dataset,
-                transform=ax.get_yaxis_transform(), rotation=90, ha="center", va="center",
-                fontsize=FS, color=INK)
+        # Повёрнуто на 90 градусов, поэтому длина подписи это её ВЫСОТА, а высота блока - четыре
+        # полосы. `Single-exon expression prediction` в одну строку туда не помещается, поэтому
+        # имя переносится по словам: у повёрнутого текста строки ложатся рядом по ширине, которой
+        # в поле есть запас, а не по высоте, которой нет.
+        ax.text(label_edge, float(np.mean(block)), wrap_rotated(dataset_label(dataset)),
+                transform=blended_transform_factory(fig.transFigure, ax.get_yaxis_transform()),
+                rotation=90, ha="right", va="center",
+                fontsize=FS, color=INK, linespacing=1.2)
 
     # In-segment labels, placed from MEASURED text widths rather than a guess at character width.
     # A 7 pt name needs about 12 mm and the bars are 142 mm wide, so a group under ~8 % of the
@@ -153,8 +173,8 @@ def plot(bars, datasets, outdir, fixed_order=False):
     renderer = fig.canvas.get_renderer()
     axes_w_in = ax.get_window_extent(renderer).width / fig.dpi
     for group, left, width, yy in segments:
-        for text in ("%s %.0f" % (group.replace("_", " "), width * 100),
-                     group.replace("_", " ")):
+        for text in ("%s %.0f" % (group_label(group), width * 100),
+                     group_label(group)):
             probe = fig.text(0, 0, text, fontsize=FS_SMALL - 0.5)
             need = probe.get_window_extent(renderer).width / fig.dpi + 0.055
             probe.remove()
@@ -167,7 +187,7 @@ def plot(bars, datasets, outdir, fixed_order=False):
     # this size - the smallest groups are one to three per cent of the budget, about 2 mm - and an
     # unnamed colour is worse than a key.
     handles = [Patch(facecolor=GROUP_COLORS[g], edgecolor=SURFACE, linewidth=0.4) for g in order]
-    key = fig.legend(handles, [members_label(g) for g in order], loc="lower center",
+    key = fig.legend(handles, [members_label(g, group_label) for g in order], loc="lower center",
                      bbox_to_anchor=(0.5, 0.004), ncol=7, frameon=False, handlelength=1.0,
                      handleheight=1.0, columnspacing=1.2, handletextpad=0.4, fontsize=FS_SMALL)
     for text, group in zip(key.get_texts(), order):
@@ -179,6 +199,24 @@ def plot(bars, datasets, outdir, fixed_order=False):
          + (" · one order for every bar" if fixed_order else " · each bar sorted by its own shares"))
     plt.close(fig)
     return order
+
+
+def wrap_rotated(name, width=17):
+    """Имя датасета, разбитое по словам под ВЕРТИКАЛЬНУЮ подпись.
+
+    Ширина подобрана под самое длинное имя (`Single-exon expression prediction`): по 17 знаков оно
+    ложится в две строки, и каждая короче блока из четырёх полос, вдоль которого подпись стоит.
+    """
+    lines, current = [], ""
+    for word in name.split():
+        if current and len(current) + 1 + len(word) > width:
+            lines.append(current)
+            current = word
+        else:
+            current = word if not current else current + " " + word
+    if current:
+        lines.append(current)
+    return "\n".join(lines)
 
 
 def main(argv=None):

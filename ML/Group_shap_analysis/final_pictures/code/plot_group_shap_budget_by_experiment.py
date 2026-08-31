@@ -1,9 +1,9 @@
 """
 The group Shapley budget of every single experiment — one bar per experiment.
 
-    python analysis/group_shap/plotting/plot_group_shap_budget_by_experiment.py
+    python analysis/group_shap/code/plots/plot_group_shap_budget_by_experiment.py
 
-Writes, into `--outdir` (default `analysis/group_shap/figures/`):
+Writes, into `--outdir` (default `analysis/group_shap/pictures/`):
 
     group_shap_budget_by_experiment_<task>_<table_type>.{png,pdf}   — four files, both tasks x
                                                                      both table types
@@ -26,6 +26,7 @@ is removed, because a neighbouring group carries the same signal. The cost lives
 """
 
 import argparse
+import math
 import os
 import sys
 
@@ -39,6 +40,8 @@ from matplotlib.patches import Patch                                       # noq
 from group_shap_shares import (ANALYSIS, DATASETS, FIGURES, FS, FS_SMALL,  # noqa: E402
                           GROUP_COLORS, INK, MM, SURFACE, ink_on, journal, load_gshap,
                           per_experiment_group_share, save)
+sys.path.insert(0, ANALYSIS)
+from group_labels import group_label, table_label                          # noqa: E402
 
 sys.path.insert(0, ANALYSIS)
 from experiment_labels import label, order                                  # noqa: E402
@@ -81,14 +84,27 @@ def draw(frame, task, table_type, outdir, fixed_order=False):
 
     # `groups` is the global order, by the mean share across all bars. It always drives the legend,
     # so the key is stable, and it drives the stacking too when `fixed_order` is on.
-    groups = sorted({g for _, _, s in bars for g in s.index},
-                    key=lambda g: -float(np.mean([s.get(g, 0.0) for _, _, s in bars])))
+    def global_key(g):
+        mean = float(np.mean([s.get(g, 0.0) for _, _, s in bars]))
+        # NaN означает, что группа не владеет ни одной колонкой в этом типе таблицы: в intergenic
+        # это `nmd`, `mane_expression` и `intron_annotations`. Сортировать по NaN-ключу нельзя -
+        # NaN несравним ни с чем, `sorted` оставляет такие элементы там, куда их положила итерация
+        # МНОЖЕСТВА, а порядок итерации множества строк меняется от процесса к процессу вместе с
+        # PYTHONHASHSEED. Из-за этого четыре intergenic-панели этой картинки выходили разными при
+        # двух запусках подряд, хотя данные те же. Отсутствующие группы уезжают в конец, а имя -
+        # последний разделитель, так что порядок полный и воспроизводимый.
+        absent = math.isnan(mean)
+        return (absent, 0.0 if absent else -mean, g)
+
+    groups = sorted({g for _, _, s in bars for g in s.index}, key=global_key)
 
     def bar_order(share):
         present = [g for g in share.index if float(share.get(g, 0.0)) > 0]
         if fixed_order:
             return [g for g in groups if g in present]
-        return sorted(present, key=lambda g: -float(share[g]))
+        # Имя как второй ключ по той же причине: без него равные доли раскладывались бы в порядке
+        # прихода, а он тут хоть и детерминирован, но ни на чём не держится.
+        return sorted(present, key=lambda g: (-float(share[g]), g))
 
     fig, ax = plt.subplots(figsize=(183 * MM, 4.0))
     # bottom was 0.185, sized for a rotated `B3-6`. The gene names are up to `PACRGL Control`,
@@ -134,7 +150,7 @@ def draw(frame, task, table_type, outdir, fixed_order=False):
     # A key, because the thinnest groups are a couple of millimetres of bar and cannot carry their
     # own number. Every segment wide enough is labelled in place; the key names the rest.
     handles = [Patch(facecolor=GROUP_COLORS.get(g, INK), linewidth=0.0,
-                     label=g.replace("_", " ")) for g in groups]
+                     label=group_label(g)) for g in groups]
     legend = ax.legend(handles=handles, fontsize=FS_SMALL - 1, loc="upper left",
                        bbox_to_anchor=(1.005, 1.02), handlelength=1.0, labelspacing=0.30,
                        frameon=False)

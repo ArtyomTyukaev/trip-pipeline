@@ -1,9 +1,9 @@
 """The published vertical SHAP heatmap, with GROUPS on the rows instead of features.
 
-    python analysis/group_shap/plotting/plot_group_shap_heatmap.py
+    python analysis/group_shap/code/plots/plot_group_shap_heatmap.py
 
 Writes twelve figures, one per (dataset x task x table_type), into `--outdir`
-(`analysis/group_shap/figures/` by default):
+(`analysis/group_shap/pictures/` by default):
 
     group_shap_heatmap_<dataset>_<task>_<table_type>.png   (+ .pdf)
 
@@ -99,7 +99,10 @@ from common import FONT                                                         
 import matplotlib.pyplot as plt                                                   # noqa: E402
 from matplotlib.colors import to_hex                                              # noqa: E402
 
-GROUP_SHAP = os.path.dirname(HERE)
+# Файл лежит на два уровня ниже корня `group_shap` (code/plots/), поэтому корень
+# берётся ДВУМЯ dirname, а не одним. Каждый скрипт считает его сам, так что при
+# следующем переезде править придётся здесь же.
+GROUP_SHAP = os.path.dirname(os.path.dirname(HERE))
 ANALYSIS = os.path.dirname(GROUP_SHAP)
 PROJECT = os.path.dirname(ANALYSIS)
 sys.path.insert(0, os.path.join(PROJECT, "settings", "custom_functions"))
@@ -108,6 +111,7 @@ sys.path.insert(0, ANALYSIS)
 from shap_heatmaps import _text_width_in                                          # noqa: E402
 from shap_heatmaps_vertical import plot_shap_heatmap_vertical                     # noqa: E402
 from experiment_labels import label, order                                        # noqa: E402
+from group_labels import group_label, table_label, dataset_label, task_label
 
 # The rotated-label geometry is not re-implemented here. `plot_shap_matrix.py` measured the two
 # candidate rotations against this very drawing function and settled on 90 degrees, and its
@@ -228,6 +232,8 @@ def draw(frame, dataset, task, table_type, outdir, args):
         # has to travel inside the dataset name or the four panels of one dataset would carry the
         # same title. Title reads `XGBoost | intron_exp | regression | intragenic`.
         dataset_name="%s | %s" % (dataset, task),
+        # СЫРОЕ имя, не подпись: функция фильтрует им матрицу (shap_heatmaps_vertical.py:88),
+        # а не только строит заголовок. Подпись подставляется в заголовок ниже, после отрисовки.
         table_type=table_type,
         model=MODEL,
         log_scale=False,
@@ -249,6 +255,20 @@ def draw(frame, dataset, task, table_type, outdir, args):
         raise RuntimeError("%s / %s / %s: the plotting function drew nothing"
                            % (dataset, task, table_type))
 
+    # Подзаголовок `linear scale, white_pct=0%, thr=0, max=0.168` снимается: это настройки
+    # отрисовки, они одинаковы во всех двенадцати панелях, кроме `max`, а `max` и так виден на
+    # шкале цвета справа.
+    #
+    # Убирается ЗДЕСЬ, до `label_room`, а не в конце: тот считает высоту шапки по самому нижнему
+    # из `fig.texts`, и снятие подзаголовка после расчёта оставило бы поле под текст, которого
+    # уже нет. Функция отрисовки в списке неприкасаемых, поэтому строку не убрать в источнике -
+    # снимается готовый объект, найденный по формату, с проверкой на единственность.
+    subtitles = [t for t in fig.texts if "white_pct=" in t.get_text()]
+    if len(subtitles) != 1:
+        raise AssertionError("%s / %s / %s: ожидался ровно один подзаголовок, найдено %d"
+                             % (dataset, task, table_type, len(subtitles)))
+    subtitles[0].remove()
+
     ax = max((a for a in fig.axes if a.images),
              key=lambda a: a.get_position().width * a.get_position().height)
     rows = [t.get_text() for t in ax.get_yticklabels()]
@@ -256,6 +276,8 @@ def draw(frame, dataset, task, table_type, outdir, args):
         raise AssertionError("%s / %s / %s: drew %d rows for %d groups"
                              % (dataset, task, table_type, len(rows), len(groups)))
 
+    # Имена групп подставляются на ось ПОСЛЕ проверки выше, позиция в позицию. `rows` прочитаны с
+    # самой оси, поэтому сдвиг здесь невозможен, а ключи под рисунком остаются прежними.
     # The codes drawn by the function are replaced by the gene names, position for position. The
     # assertion is what makes that safe: it is the only thing standing between a relabelled axis
     # and a mislabelled one, and a silent off-by-one here would put every column under the wrong
@@ -264,18 +286,53 @@ def draw(frame, dataset, task, table_type, outdir, args):
     if drawn_codes != experiments:
         raise AssertionError("%s / %s / %s: asked for columns %s and the function drew %s"
                              % (dataset, task, table_type, experiments, drawn_codes))
-    # Only when they actually differ, so a panel with nothing to rename - `single_combined`, whose
-    # two names are not introns - is left exactly as the drawing function produced it.
+    # Только если они действительно различаются. С 2026-08-31 переименовываются и две библиотеки
+    # `single_combined` (`5ss_noP` -> `Regular`, `CPA_noP` -> `PCPA`), так что панелей без
+    # переименования больше не осталось, но условие оставлено: оно защищает от лишней перерисовки.
     if drawn != drawn_codes:
         ax.set_xticklabels(drawn, fontsize=args.font)
 
     if rotate:
         rotate_x_labels(ax)
-        extra_top, extra_right, extra_left = label_room(fig, ax)
-        expand_canvas(fig, extra_top, extra_right, extra_left)
 
+    # ПОРЯДОК ЗДЕСЬ ОБЯЗАТЕЛЕН, и каждый шаг стоит там, где стоит, по своей причине.
+    #
+    # 1. `check_colors` первым, потому что он сверяет подписи строк с КЛЮЧАМИ палитры групп: после
+    #    переименования он упал бы на верном рисунке.
+    # 2. Переименование строк - позиция в позицию, `rows` прочитаны с самой оси выше.
+    # 3. Расширение холста ПОСЛЕ переименования, а не только при повороте колонок. Имена Игоря
+    #    заметно шире ключей (`Distance to intron ends` против `intron_annotations`), левое поле
+    #    было рассчитано под ключи, и подписи уезжали за край.
+    # 4. `check_labels` последним, на окончательном состоянии. Раньше он стоял до переименования и
+    #    честно проверял КОРОТКИЕ подписи, поэтому обрезку длинных пропускал - проверка должна
+    #    видеть то, что уйдёт в файл.
     check_colors(ax, "%s/%s/%s" % (dataset, task, table_type))
+    ax.set_yticklabels([group_label(r) for r in rows], fontsize=args.font)
+    # Заголовок функция строит как `model | dataset_name | table_type` из СЫРОГО имени. Меняем его
+    # текст после отрисовки, найдя по точному совпадению: если функция когда-нибудь изменит формат,
+    # совпадения не будет и это упадёт, а не подменит молча что-то другое.
+    want = "%s | %s | %s | %s" % (MODEL, dataset, task, table_type)
+    titles = [t for t in fig.texts if t.get_text() == want]
+    if len(titles) != 1:
+        raise AssertionError("%s / %s / %s: ожидался ровно один заголовок %r, найдено %d"
+                             % (dataset, task, table_type, want, len(titles)))
+    # Без `MODEL`: модель во всех двенадцати панелях одна и та же, слово `XGBoost` в заголовке
+    # ничего не различает. Искомая строка `want` выше собирается ВМЕСТЕ с ним, потому что функция
+    # рисует именно так - убирается он только из того, что остаётся на картинке.
+    # Две строки: что предсказывается - сверху, условия прогона - под ним. Одной строкой это
+    # `Single-exon expression prediction | Regression | Inside MANE genes`, то есть шире панели.
+    titles[0].set_text("%s\n%s | %s"
+                       % (dataset_label(dataset), task_label(task), table_label(table_type)))
+
+    # Поля считаются ПОСЛЕ подмены заголовка. Он стал двухстрочным, то есть выше, и `label_room`
+    # меряет высоту шапки по фактическим `fig.texts` - посчитай раньше, и вторая строка вырастет
+    # в уже занятое место, ровно на повёрнутые подписи колонок.
+    extra_top, extra_right, extra_left = label_room(fig, ax)
+    extra_left = max(extra_left, row_label_room(fig, ax))
+    expand_canvas(fig, extra_top, extra_right, extra_left)
+
     check_labels(fig, ax, "%s/%s/%s" % (dataset, task, table_type))
+
 
     name = "group_shap_heatmap_%s_%s_%s" % (dataset, task, table_type)
     os.makedirs(outdir, exist_ok=True)
@@ -313,6 +370,24 @@ def check_colors(ax, label):
                              % (label, len(wrong), wrong[:3]))
 
 
+def row_label_room(fig, ax, pad=0.08):
+    """На сколько дюймов холст должен вырасти СЛЕВА, чтобы подписи строк поместились.
+
+    `label_room` из `plot_shap_matrix.py` меряет только подписи КОЛОНОК - он написан под поворот
+    оси X, и строки в нём не учтены вовсе. Пока строки назывались ключами (`intron_annotations`),
+    поле под них хватало и без измерения; с именами Игоря (`Distance to intron ends`) перестало.
+
+    Меряется по отрисованной фигуре, как и всё остальное здесь, поэтому держится при любом шрифте
+    и любой длине имени.
+    """
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    boxes = [lbl.get_window_extent(renderer) for lbl in ax.get_yticklabels() if lbl.get_text()]
+    if not boxes:
+        return 0.0
+    return max(0.0, pad - min(b.x0 for b in boxes) / fig.dpi)
+
+
 def check_labels(fig, ax, label):
     """No two tick labels of either axis may overlap, and none may leave the canvas.
 
@@ -330,6 +405,16 @@ def check_labels(fig, ax, label):
                 if a.x0 < b.x1 and b.x0 < a.x1 and a.y0 < b.y1 and b.y0 < a.y1:
                     raise AssertionError("%s: %s labels %r and %r overlap"
                                          % (label, axis, boxes[i][0], boxes[j][0]))
+        # Заголовок против подписей. `check_labels` смотрел только подписи друг с другом и с краем
+        # холста, поэтому наезд ДВУХСТРОЧНОГО заголовка на повёрнутые имена колонок он пропускал -
+        # а это ровно то, что здесь один раз и случилось.
+        for text in fig.texts:
+            tb = text.get_window_extent(renderer)
+            for name, b in boxes:
+                if tb.x0 < b.x1 and b.x0 < tb.x1 and tb.y0 < b.y1 and b.y0 < tb.y1:
+                    raise AssertionError("%s: заголовок %r наезжает на подпись %r"
+                                         % (label, text.get_text().replace("\n", " / "), name))
+
         page = fig.get_window_extent(renderer)
         clipped = [t for t, b in boxes
                    if b.x0 < page.x0 - 0.5 or b.x1 > page.x1 + 0.5

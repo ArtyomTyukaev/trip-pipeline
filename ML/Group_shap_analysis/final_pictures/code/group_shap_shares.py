@@ -45,7 +45,10 @@ import numpy as np
 import pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-GROUP_SHAP = os.path.dirname(HERE)
+# Файл лежит на два уровня ниже корня `group_shap` (code/plots/), поэтому корень
+# берётся ДВУМЯ dirname, а не одним. Каждый скрипт считает его сам, так что при
+# следующем переезде править придётся здесь же.
+GROUP_SHAP = os.path.dirname(os.path.dirname(HERE))
 ANALYSIS = os.path.dirname(GROUP_SHAP)
 PROJECT = os.path.dirname(ANALYSIS)
 
@@ -60,7 +63,7 @@ from common import (DATASETS, FS, FS_SMALL, GRID, GROUP_COLORS, HAIR, INK,     #
 from group_shares import (N_EXPERIMENTS, N_MEMBERS, members_label, save)      # noqa: E402,F401
 
 DATA = os.environ.get("GROUP_SHAP_DATA") or os.path.join(GROUP_SHAP, "data")
-FIGURES = os.path.join(GROUP_SHAP, "figures")
+FIGURES = os.path.join(GROUP_SHAP, "pictures")
 
 MODEL_KEY = ["dataset", "task", "table_type", "experiment"]
 

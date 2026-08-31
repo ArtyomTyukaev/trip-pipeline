@@ -126,9 +126,13 @@ def spread(dataset, unit):
 def paired(x_wide, y_wide, task, table_type):
     """One frame of the two shares, the ratio, and which side the point leans to.
 
-    `dropna()` keeps only what BOTH datasets had in this panel. Verified on the tables as built:
-    that is all 59 features intragenic and all 54 intergenic, so it drops nothing here - it is the
-    assertion that the two datasets really are the same columns, made where it would fail loudly.
+    `dropna()` keeps only what BOTH datasets had in this panel, which is what makes the pairing
+    honest: a group only one of the two models had is not comparable and must not be plotted.
+
+    Since 2026-08-31 it actually drops something, and that is intended. `NMD_expected` was removed
+    from `intron_splicing` alone, so `nmd` exists for `intron_exp` intragenic and not for its
+    partner, and the intragenic panels of the group figure carry 16 points instead of 17. The
+    intergenic panels are unaffected - the feature was already on the intergenic drop list.
     """
     x, y = x_wide.loc[(task, table_type)], y_wide.loc[(task, table_type)]
     frame = pd.DataFrame({"exp": x, "spl": y}).dropna()
@@ -342,7 +346,8 @@ def panel_corner(ax, frame, unit, band=True, median=True):
 
 
 def draw(unit, x_wide, y_wide, x_spread, y_spread, outdir, label_rule, whiskers, size, name,
-         title, label_note="", band=True, median=True, tasks=None, labels=True):
+         title, label_note="", band=True, median=True, tasks=None, labels=True,
+         namer=None, table_namer=None, task_namer=None, x_label=None, y_label=None):
     """`band=False` drops the +-20 % stripe and the three corner lines that quote it.
 
     Three more switches, all defaulting to the original behaviour so the ablation twin is untouched:
@@ -416,20 +421,25 @@ def draw(unit, x_wide, y_wide, x_spread, y_spread, outdir, label_rule, whiskers,
                 idx = [i for i, key in enumerate(frame.index) if key in keep]
                 rank = sorted(idx, key=lambda i: -max(xs[i], ys[i]))
                 dropped_total += place_labels(
-                    ax, xs, ys, [display_name(k) for k in frame.index], colours,
+                        ax, xs, ys, [(namer(k) if namer else display_name(k)) for k in frame.index],
+                    colours,
                     fontsize=FS_SMALL - (0 if unit == "group" else 0.8), order=rank,
                     occupied=corner)
 
             if r == 0:
-                ax.annotate(table_type, xy=(0.5, 1.045), xycoords="axes fraction", ha="center",
+                ax.annotate(table_namer(table_type) if table_namer else table_type,
+                            xy=(0.5, 1.045), xycoords="axes fraction", ha="center",
                             va="bottom", fontsize=FS + 0.5, color=INK)
             if c == 0:
-                ax.annotate(task, xy=(-0.235, 0.5), xycoords="axes fraction", ha="center",
+                ax.annotate(task_namer(task) if task_namer else task,
+                            xy=(-0.235, 0.5), xycoords="axes fraction", ha="center",
                             va="center", rotation=90, fontsize=FS + 0.5, color=INK)
-                ax.set_ylabel("share of the importance budget\n%s" % Y_LABEL, fontsize=FS_SMALL,
+                ax.set_ylabel("share of the importance budget\n%s" % (y_label or Y_LABEL),
+                              fontsize=FS_SMALL,
                               linespacing=1.35)
             if r == len(tasks) - 1:
-                ax.set_xlabel("share of the importance budget\n%s" % X_LABEL, fontsize=FS_SMALL,
+                ax.set_xlabel("share of the importance budget\n%s" % (x_label or X_LABEL),
+                              fontsize=FS_SMALL,
                               linespacing=1.35)
 
     any_hollow = any((f[["exp", "spl"]] <= lo).any(axis=1).any() for f in frames.values())

@@ -1,9 +1,9 @@
 """Expression against splicing — on the TRUE group Shapley value.
 
-    python analysis/group_shap/plotting/plot_group_shap_exp_vs_splicing.py
+    python analysis/group_shap/code/plots/plot_group_shap_exp_vs_splicing.py
 
 Writes `group_shap_exp_vs_splicing.png` / `.pdf` into `--outdir`
-(`analysis/group_shap/figures/` by default).
+(`analysis/group_shap/pictures/` by default).
 
 This is the scatter Igor asked for in `../../chat_with_igor.txt` - "a scatter plot of feature
 importance for splicing against expression" - recomputed from `gshap`. It is the counterpart of
@@ -75,9 +75,11 @@ import pandas as pd
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-from group_shap_shares import (ABLATION_PLOTTING, FIGURES, load_group_shap,   # noqa: E402
+from group_shap_shares import (ANALYSIS, ABLATION_PLOTTING, FIGURES, load_group_shap,   # noqa: E402
                                mean_group_share, spread)
 sys.path.insert(0, ABLATION_PLOTTING)
+sys.path.insert(0, ANALYSIS)
+from group_labels import group_label, table_label, dataset_label, task_label            # noqa: E402
 
 from common import MM                                                         # noqa: E402
 import plot_exp_vs_splicing as exp_vs_splicing                                # noqa: E402
@@ -139,7 +141,9 @@ def main(argv=None):
         x_wide=mean_group_share(frame, X_DATASET), y_wide=mean_group_share(frame, Y_DATASET),
         x_spread=spread(frame, X_DATASET), y_spread=spread(frame, Y_DATASET),
         outdir=args.outdir, label_rule=lambda f: set(f.index),
-        whiskers=True, band=False, median=False)
+        whiskers=True, band=False, median=False,
+        namer=group_label, table_namer=table_label, task_namer=task_label,
+        x_label=dataset_label(X_DATASET), y_label=dataset_label(Y_DATASET))
 
     if args.regression_only:
         # Two panels, so the sheet is half as tall; the width stays 183 mm because the panels are
