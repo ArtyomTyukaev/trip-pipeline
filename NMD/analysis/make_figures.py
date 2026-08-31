@@ -23,6 +23,7 @@ from collections import Counter, defaultdict
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib import font_manager as fm
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -47,7 +48,33 @@ LIBS = [("5ss_noP", "5ss"), ("CPA_noP", "CPA")]
 DISPLAY = {"5ss_noP": "5ss_noP", "CPA_noP": "CPA_noP"}
 DOTS_UP_TO = 500        # boxplots smaller than this also show every barcode as a dot
 
+# Arial, on request, for every figure this script draws.
+#
+# It has to be registered from a file. This cluster has no Arial and no Helvetica installed -
+# fc-list returns 38 entries, all of them DejaVu Sans, Source Code Pro or Cantarell - so asking
+# matplotlib for "Arial" without this would fall through to DejaVu Sans silently: the figure would
+# look unchanged and be set in the wrong face, which is the failure mode worth guarding against.
+#
+# One glyph the file does NOT carry is U+2082, the subscript two of "log2". Every label that needs
+# it is written as mathtext instead and composed by matplotlib out of the regular digits, with the
+# mathtext faces pointed at Arial below so the formula matches the prose around it.
+ARIAL = os.path.normpath(os.path.join(ROOT, os.pardir, "context", "other", "Arial.ttf"))
+if os.path.exists(ARIAL):
+    fm.fontManager.addfont(ARIAL)
+    FONT = fm.FontProperties(fname=ARIAL).get_name()
+    resolved = fm.findfont(fm.FontProperties(family=FONT), fallback_to_default=False)
+    if os.path.realpath(resolved) != os.path.realpath(ARIAL):
+        raise RuntimeError("asked for %s and matplotlib resolved %s" % (FONT, resolved))
+else:
+    FONT = "DejaVu Sans"
+    print("  [!] no Arial at %s - figures will be set in %s" % (ARIAL, FONT))
+
 plt.rcParams.update({
+    "font.family": FONT, "font.sans-serif": [FONT],
+    # mathtext has its own font set, and left alone it would set every $...$ in DejaVu while the
+    # labels around it are Arial.
+    "mathtext.fontset": "custom", "mathtext.rm": FONT, "mathtext.it": "%s:italic" % FONT,
+    "mathtext.bf": "%s:bold" % FONT, "mathtext.default": "regular",
     "figure.facecolor": "#fcfcfb", "axes.facecolor": "#fcfcfb",
     "font.size": 9, "axes.titlesize": 10, "axes.labelsize": 9,
     "axes.edgecolor": INK2, "axes.linewidth": 0.8,
@@ -802,7 +829,7 @@ def fig08_ptc_source(data):
         axes[0].annotate(label, xy=(0, y), xycoords=("axes fraction", "data"),
                          xytext=(-7, 0), textcoords="offset points", ha="right", va="center",
                          fontsize=FS, color=INK)
-    fig.text(0.62, 0.055, "log₂ fold change (CHX / EtOH)", ha="center",
+    fig.text(0.62, 0.055, "$\\mathregular{log_2}$ fold change (CHX / EtOH)", ha="center",
              fontsize=FS, color=INK)
     save(fig, "fig08_ptc_source.png", vector=True)
 
@@ -999,7 +1026,7 @@ def fig11_relpos(data):
         for k, (_, text, colour) in enumerate([e for e in ends if e[0] is ax]):
             ax.text(0.015, 0.985 - 0.085 * k, text, transform=ax.transAxes,
                     ha="left", va="top", fontsize=FS_SMALL, color=colour)
-    axes[0].set_ylabel("median log\u2082 fold change (CHX / EtOH)", fontsize=FS, color=INK)
+    axes[0].set_ylabel("median $\\mathregular{log_2}$ fold change (CHX / EtOH)", fontsize=FS, color=INK)
     fig.text(0.53, 0.035, "position in the mRNA: 0 = 5\u2032 end, 1 = 3\u2032 end",
              ha="center", fontsize=FS, color=INK)
     save(fig, "fig11_relpos.png", vector=True)

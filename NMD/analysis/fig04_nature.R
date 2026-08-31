@@ -105,25 +105,29 @@ tests$library_label <- factor(tests$library_label, levels = levels(d$library_lab
 tests$p_adj <- ave(tests$p, tests$library_label,
                    FUN = function(v) p.adjust(v, method = "holm"))
 
-# Stars, not the number itself. The ladder is ns / * / ** / *** / **** at 0.05 / 0.01 / 0.001 /
-# 0.0001 - it is NOT the count of decimals of p, and it saturates at four, so 5.8e-42 and 9.0e-57
-# both print "****". The exact values therefore have to travel in the caption, which is what the
-# console output below is for.
+# The number itself, not a star. Stars were tried and dropped: the ladder saturates at four, so
+# 5.8e-36 and 2.9e-56 print identically, and every comparison on this panel is far past that
+# ceiling - the whole figure read "**** **** **** ****" and said nothing about how far past.
 #
-# Its weak point is on show here: 5ss_noP's first comparison is p = 0.05003, which prints "ns"
-# while 0.0499 would print "*", and nothing in the data separates those two numbers. That is the
-# reason for printing the exact p rather than only drawing the star.
+# The ADJUSTED p is what is drawn, so the panel shows what survives the correction. The raw value
+# goes to the console beside it.
 #
-# The star is read off the ADJUSTED p, so what the figure marks is what survives the correction.
-fmt_star <- function(p) {
+# Written as plotmath, not as unicode superscripts. Unicode was tried first and is wrong here: the
+# base-14 PDF device cannot encode U+00D7 or U+207B, and pdf() replaces each byte with a dot, so
+# the PNG read "P = 5.8 x 10^-36" while the PDF - the file that goes to the journal - read
+# "P = 5.8 . 10.........". 48 conversion warnings, one per character, and a silently broken figure.
+# plotmath renders on every device, and it gives an italic P for free, which is the convention.
+#
+# Each label is parsed on its own, so exponents of different widths across the facets are fine.
+fmt_p <- function(p) {
   if (!is.finite(p)) return("")
-  if (p < 1e-4) return("****")
-  if (p < 1e-3) return("***")
-  if (p < 1e-2) return("**")
-  if (p < 0.05) return("*")
-  "ns"
+  if (p >= 0.01)  return(sprintf("italic(P) == %.2f", p))
+  if (p >= 0.001) return(sprintf("italic(P) == %.3f", p))
+  e <- floor(log10(p))
+  m <- p / 10^e
+  sprintf("italic(P) == %.1f %%*%% 10^%d", m, e)
 }
-tests$label <- vapply(tests$p_adj, fmt_star, character(1))
+tests$label <- vapply(tests$p_adj, fmt_p, character(1))
 cat("  Wilcoxon rank-sum, two-sided; Holm-adjusted within each library - for the caption:\n")
 for (i in seq_len(nrow(tests))) {
   cat(sprintf("    %-8s %-28s vs %-28s p = %.3g, adjusted %.3g   %s\n",
@@ -149,32 +153,25 @@ br_x <- c(hi + 0.05 * span, hi + 0.10 * span)     # one x per comparison, the wi
 br_tick <- 0.02 * span                            # short arms reaching back towards the boxes
 # The stars are set rotated, so the right pad only has to clear the height of a line of 6 pt type
 # rather than the width of four characters.
-xlim <- c(lo - 0.30 * span, hi + 0.16 * span)
+# The right pad now has to hold a whole "P = 5.8 x 10^-36" set horizontally at 6 pt. That is only
+# affordable because the x rule is drawn as its own annotate() segment clipped to the breaks - with
+# the theme's axis.line.x the rule would follow the strip out into the annotation.
+xlim <- c(lo - 0.30 * span, hi + 0.50 * span)
 
 # The taller bracket sits further out, whichever direction it points.
 tests$x <- br_x[tests$hi_g - tests$lo_g]
 # Midpoint of the bracket.
 tests$y <- (tests$lo_g + tests$hi_g) / 2
 
-# How each label is set, carried as three more columns of `tests` rather than as a second geom_text
-# over half the rows: the layer already draws one label per row, so a hardcoded split would be one
-# more place to keep in step every time the labels or the brackets change.
+# Both labels horizontal, one size, left-aligned at a single x clear of the outer bracket. The
+# per-row angle and size that the star notation needed are gone with it: "P = 5.8 x 10^-36" has a
+# reading direction whatever the comparison, and at 6 pt it is about 17 mm long - too long to set
+# turned against a bracket that spans one row, which is only 10 mm of panel height.
 #
-# Only "ns" is turned the other way. A stack of asterisks is one glyph repeated along the baseline
-# and reads identically whichever end is up, so flipping it would buy nothing and would only make
-# the two brackets of a panel disagree with each other; "ns" is a word and does have a reading
-# direction, and -90 (top-to-bottom) is the direction the eye takes down a vertical label. The test
-# is on the label itself rather than on which comparison the row is, so if a p-value moves and this
-# bracket becomes a star it picks up the stars' setting on its own and nothing here has to follow.
-star_only <- grepl("^\\*+$", tests$label)
-tests$lab_angle <- ifelse(star_only, 90, -90)
-# "ns" is the null result and has no business being the loudest thing in the strip, so it is set a
-# point smaller, and it sits closer to its own spine. Turned, the label is only as wide as the
-# letters are tall - 0.97 mm at 5 pt - so 0.018 of the span puts it a fifth of a millimetre off its
-# own bracket, near enough to read as belonging to it, and still more than a millimetre clear of the
-# taller bracket's spine, which the old 0.035 offset at 6 pt ran into.
-tests$lab_size <- ifelse(star_only, 6, 5) * pt
-tests$lab_x <- tests$x + ifelse(star_only, 0.035, 0.018) * span
+# They sit half a row apart vertically, roughly 5 mm against a 2 mm line, so they cannot meet.
+tests$lab_angle <- 0
+tests$lab_size <- 4.6 * pt
+tests$lab_x <- max(br_x) + 0.035 * span
 
 # The sample sizes, one row per library and group, placed inside the panel that owns them.
 sizes <- stats[, c("library_label", "group", "n")]
@@ -218,7 +215,7 @@ p <- ggplot(stats, aes(y = group)) +
   # where `tests` gets them), so the two labels can be set differently in one layer.
   geom_text(data = tests, inherit.aes = FALSE,
             aes(x = lab_x, y = y, label = label, angle = lab_angle, size = lab_size),
-            hjust = 0.5, vjust = 0.5, colour = "grey35") +
+            parse = TRUE, hjust = 0, vjust = 0.5, colour = "grey35") +
   scale_fill_manual(values = fill) +
   scale_colour_manual(values = stroke) +
   # `size` is already in the mm ggplot wants, so it is passed through rather than scaled.
