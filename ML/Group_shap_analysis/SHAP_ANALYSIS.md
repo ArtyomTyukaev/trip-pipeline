@@ -9,8 +9,7 @@ Group SHAP values were calculated only for 200 barcodes with 50 background barco
 
 ## Which features are in which group
 
-There are **17 groups and 60 features**, and the membership is the same in all three datasets.
-Groups are sorted by size.
+There are **17 groups and 60 features**
 
 | group | n | features |
 |---|---|---|
@@ -120,7 +119,7 @@ and the whiskers are the interquartile range of its share across the 8 introns. 
 
 SHAP values come out per barcode. Within one experiment we take the mean of the **absolute** value
 over barcodes, which gives one number per group. The mean has to be of the absolute value, because
-the signed values are centred on the base prediction and would largely cancel. The numbers of all
+the signed values are centred on the base prediction and would largely cancel each other out. The numbers of all
 groups in one model are then normalised to add up to 1, which turns them into shares of that
 model's importance budget. The same is done for every experiment, that is for every intron, and the
 importance reported for a group is the mean of its share over the experiments.
