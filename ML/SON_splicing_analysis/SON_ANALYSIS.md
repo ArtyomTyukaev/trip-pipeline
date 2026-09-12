@@ -66,7 +66,7 @@ was chosen on the availability of data, not on the result.
 For PACRGL Control and TONSL the 4.2 threshold removes no rows at all. The data for these two
 constructs is just noisier.
 
-![AUC against the lfcSE filter](figures/son_auc_vs_lfcse.png)
+![AUC against the lfcSE filter](other_pictures/son_auc_vs_lfcse.png)
 
 ### Labelling rules
 
@@ -90,7 +90,7 @@ down under SON depletion.
 
 ## Class definition
 
-![class definition](figures/son_class_definition.png)
+![class definition](other_pictures/son_class_definition.png)
 
 | construct | `lfcSE` | rows | class 1 | share |
 |---|---|---|---|---|
@@ -138,9 +138,9 @@ direction is not:
 
 ## meanL2FC distributions
 
-![passed the threshold](figures/son_l2fc_distributions.png)
+![passed the threshold](other_pictures/son_l2fc_distributions.png)
 
-![did not pass the threshold](figures/son_l2fc_nonsignificant.png)
+![did not pass the threshold](other_pictures/son_l2fc_nonsignificant.png)
 
 ## meanL2FC by construct
 
@@ -149,7 +149,7 @@ Three views of the same data, one panel per construct, getting narrower from top
 First, everything that was measured at all, with no filter of any kind. Note the y axis here goes to
 2 500, against 100 on the two below.
 
-![every measured barcode](figures/son_l2fc_per_construct_all.png)
+![every measured barcode](other_pictures/son_l2fc_per_construct_all.png)
 
 | construct | measured | of those, down | share down |
 |---|---|---|---|
@@ -163,9 +163,9 @@ it. Whatever direction shows up later comes from the significance threshold, not
 
 Then the barcodes that pass the significance threshold.
 
-![significant only](figures/son_l2fc_per_construct_loose.png)
+![significant only](other_pictures/son_l2fc_per_construct_loose.png)
 
-![significant and precisely measured](figures/son_l2fc_per_construct_loose_lfcse.png)
+![significant and precisely measured](other_pictures/son_l2fc_per_construct_loose_lfcse.png)
 
 | construct | `p < 0.005` | plus its own `lfcSE` | rows dropped by the `lfcSE` filter |
 |---|---|---|---|
@@ -189,9 +189,9 @@ small effect passes the significance threshold, at low coverage it does not.
 Exactly the rows the model saw, after the intragenic/intergenic split and the training script's own
 internal cutoffs.
 
-![classification](figures/son_dataset_sizes_classification.png)
+![classification](other_pictures/son_dataset_sizes_classification.png)
 
-![regression](figures/son_dataset_sizes_regression.png)
+![regression](other_pictures/son_dataset_sizes_regression.png)
 
 Classification, inside MANE genes:
 
@@ -233,7 +233,7 @@ good the model is.
 
 | | |
 |:---:|:---:|
-| ![quality, regression](figures/son_quality_regression.png) | ![quality, classification](figures/son_quality_classification.png) |
+| ![quality, regression](other_pictures/son_quality_regression.png) | ![quality, classification](other_pictures/son_quality_classification.png) |
 
 | construct | `lfcSE` | table | classification train | classification test | classification Δ | regression train | regression test | regression Δ |
 |---|---|---|---|---|---|---|---|---|
@@ -255,7 +255,7 @@ at the probability the model gave it. The upper row in each lane is true class 0
 true class 1. The dashed line is the threshold that separates the two classes best, and the columns
 on the right say how much of each class it gets right there.
 
-![predicted probabilities](figures/son_predicted_probabilities.png)
+![predicted probabilities](other_pictures/son_predicted_probabilities.png)
 
 Three things show up here that the AUC does not say.
 
@@ -267,12 +267,12 @@ Six models out of ten produce almost no spread. Four models do work. The merged 
 The bar is the 95 % bootstrap interval, that is the precision of the measurement. The grey band is
 the 95 % spread under shuffled labels, that is what a dud would look like.
 
-![is the AUC real](figures/son_auc_significance.png)
+![is the AUC real](other_pictures/son_auc_significance.png)
 
 The same panel for inside MANE genes only, with the number of positives in the
 test under each construct.
 
-![AUC against chance, inside MANE genes](figures/son_auc_significance_intragenic.png)
+![AUC against chance, inside MANE genes](other_pictures/son_auc_significance_intragenic.png)
 
 For regression, the link between the prediction and sequencing depth is drawn next to the Spearman
 value. Without it, a high Spearman cannot be told apart from simply predicting coverage.
@@ -296,7 +296,7 @@ strictly speaking the two profiles are no longer the same game, and the comparis
 looser than it was. It does not change the direction of the answer: the match was at the null level
 to three decimals, and one group out of fifteen cannot move that.
 
-![is the Spearman real](figures/son_spearman_significance.png)
+![is the Spearman real](other_pictures/son_spearman_significance.png)
 
 ---
 
@@ -306,8 +306,8 @@ to three decimals, and one group out of fifteen cannot move that.
 
 | | inside MANE genes | outside MANE genes |
 |---|---|---|
-| regression | ![](figures/group_shap_heatmap_son_reg_regression_intragenic.png) | ![](figures/group_shap_heatmap_son_reg_regression_intergenic.png) |
-| classification | ![](figures/group_shap_heatmap_son_cls_classification_intragenic.png) | ![](figures/group_shap_heatmap_son_cls_classification_intergenic.png) |
+| regression | ![](other_pictures/group_shap_heatmap_son_reg_regression_intragenic.png) | ![](other_pictures/group_shap_heatmap_son_reg_regression_intergenic.png) |
+| classification | ![](other_pictures/group_shap_heatmap_son_cls_classification_intragenic.png) | ![](other_pictures/group_shap_heatmap_son_cls_classification_intergenic.png) |
 
 ### The same, normalised within each column
 
@@ -316,8 +316,8 @@ the **share of the model's attention**.
 
 | | inside MANE genes | outside MANE genes |
 |---|---|---|
-| regression | ![](figures/group_shap_heatmap_share_son_reg_regression_intragenic.png) | ![](figures/group_shap_heatmap_share_son_reg_regression_intergenic.png) |
-| classification | ![](figures/group_shap_heatmap_share_son_cls_classification_intragenic.png) | ![](figures/group_shap_heatmap_share_son_cls_classification_intergenic.png) |
+| regression | ![](other_pictures/group_shap_heatmap_share_son_reg_regression_intragenic.png) | ![](other_pictures/group_shap_heatmap_share_son_reg_regression_intergenic.png) |
+| classification | ![](other_pictures/group_shap_heatmap_share_son_cls_classification_intragenic.png) | ![](other_pictures/group_shap_heatmap_share_son_cls_classification_intergenic.png) |
 
 **The raw version says where the model found any signal at all**, and a pale column there is honest.
 **The share version says how the attention is made up** where there is signal.
@@ -328,26 +328,26 @@ off the share one.
 
 ## By individual feature
 
-![regression, inside genes](figures/son_featureshap_regression_intragenic.png)
+![regression, inside genes](other_pictures/son_featureshap_regression_intragenic.png)
 
-![regression, outside genes](figures/son_featureshap_regression_intergenic.png)
+![regression, outside genes](other_pictures/son_featureshap_regression_intergenic.png)
 
-![classification, inside genes](figures/son_featureshap_classification_intragenic.png)
+![classification, inside genes](other_pictures/son_featureshap_classification_intragenic.png)
 
-![classification, outside genes](figures/son_featureshap_classification_intergenic.png)
+![classification, outside genes](other_pictures/son_featureshap_classification_intergenic.png)
 
 ### The same, normalised within each column
 
 Same idea as for the groups: every column is divided by its own sum, so the columns add up to 1 and
 the colour is the share of the model's attention.
 
-![regression, inside genes](figures/son_featureshap_share_regression_intragenic.png)
+![regression, inside genes](other_pictures/son_featureshap_share_regression_intragenic.png)
 
-![regression, outside genes](figures/son_featureshap_share_regression_intergenic.png)
+![regression, outside genes](other_pictures/son_featureshap_share_regression_intergenic.png)
 
-![classification, inside genes](figures/son_featureshap_share_classification_intragenic.png)
+![classification, inside genes](other_pictures/son_featureshap_share_classification_intragenic.png)
 
-![classification, outside genes](figures/son_featureshap_share_classification_intergenic.png)
+![classification, outside genes](other_pictures/son_featureshap_share_classification_intergenic.png)
 
 The raw version shows where the model found signal in the first place, the share version shows how
 the attention is composed where signal exists.
