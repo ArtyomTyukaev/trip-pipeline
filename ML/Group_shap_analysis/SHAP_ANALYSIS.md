@@ -7,12 +7,14 @@ of the single features in the group.
 
 Group SHAP values were calculated only for 200 barcodes with 50 background barcodes for each one because of high computational complexity.
 
-**UPD**: NMD was deleted from features for intron_splicig prediction
+**UPD**: `NMD_expected` was removed from the features of both intron datasets, `intron_exp` and
+`intron_splicing`. It stays only in `single_combined`.
 
 
 ## Which features are in which group
 
-There are **17 groups and 60 features**
+There are **17 groups and 60 features** in `single_combined`, and **16 groups and 59 features** in
+the two intron datasets, which no longer carry `NMD_expected`.
 
 | group | n | features |
 |---|---|---|
@@ -31,7 +33,7 @@ There are **17 groups and 60 features**
 | `conservation` | 1 | phyloP |
 | `icshape` | 1 | icSHAPE |
 | `mane_expression` | 1 | MANE_all_exp.norm.log10 |
-| `nmd` | 1 | NMD_expected |
+| `nmd` | 1 | NMD_expected. `single_combined` only |
 | `repeats` | 1 | RepeatGroup |
 
 ### What is dropped for the intergenic table
@@ -40,7 +42,8 @@ Outside a MANE gene these 9 features are removed:
 `DistToTSS`, `DistToTES`, `RelPos`, `MANElength`, `DistToIntron5`, `DistToIntron3`, `RelIntronPos`,
 `MANE_all_exp.norm.log10`, `NMD_expected`.
 
-Three groups disappear completely: `intron_annotations`, `mane_expression` and `nmd`. A fourth group,
+Three groups disappear completely: `intron_annotations`, `mane_expression` and `nmd`, and in the
+intron datasets only the first two, because `nmd` is already absent there. A fourth group,
 `gene_annotations`, shrinks from 7 features to 3.
 
 That leaves **14 groups and 51 features**.
@@ -135,10 +138,13 @@ are centred.
 
 ## The `nmd` feature is a marker of CDS, and must not be read as NMD
 
+This is why the feature was removed from both intron datasets, so the figures above no longer show
+an `nmd` group for them. The section stays because it is the reason for the removal.
+
 For the intron datasets `NMD_expected` is **identical to the statement that the integration is
 inside a CDS**.
-This gives the reading of section 3. The fact that `nmd` leads in `intron_splicing` intragenic says
-that the model tells an insertion into the coding part from an insertion into a UTR.
+In the earlier run `nmd` led in `intron_splicing` intragenic, which said that the model tells an
+insertion into the coding part from an insertion into a UTR, and not anything about NMD.
 
 ### How NMD was computed for the intron constructs
 
