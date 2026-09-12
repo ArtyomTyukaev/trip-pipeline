@@ -8,22 +8,27 @@ DDX51 and NBEAL2, inside MANE genes.
 
 ## Model quality
 
-![model quality](figures/son_final_quality.png)
+![model quality](final_pictures/son_final_quality.png)
+
+| construct | classification train | classification test | regression train | regression test |
+|---|---|---|---|---|
+| DDX51 | 0.841 | 0.721 | 0.783 | 0.382 |
+| NBEAL2 | 0.837 | 0.822 | 0.758 | 0.367 |
 
 ## Is the AUC real
 
-![AUC against chance](figures/son_final_auc_significance.png)
+![AUC against chance](final_pictures/son_final_auc_significance.png)
 
 ## Group SHAP
 
 | | inside MANE genes | outside MANE genes |
 |---|---|---|
-| classification | ![](figures/group_shap_heatmap_final_son_cls_classification_intragenic.png) | ![](figures/group_shap_heatmap_final_son_cls_classification_intergenic.png) |
-| regression | ![](figures/group_shap_heatmap_final_son_reg_regression_intragenic.png) | ![](figures/group_shap_heatmap_final_son_reg_regression_intergenic.png) |
+| classification | ![](final_pictures/group_shap_heatmap_final_son_cls_classification_intragenic.png) | ![](final_pictures/group_shap_heatmap_final_son_cls_classification_intergenic.png) |
+| regression | ![](final_pictures/group_shap_heatmap_final_son_reg_regression_intragenic.png) | ![](final_pictures/group_shap_heatmap_final_son_reg_regression_intergenic.png) |
 
 ## Volcano
 
-![volcano](figures/son_volcano.png)
+![volcano](final_pictures/son_volcano.png)
 
 ---
 
@@ -229,6 +234,19 @@ good the model is.
 | | |
 |:---:|:---:|
 | ![quality, regression](figures/son_quality_regression.png) | ![quality, classification](figures/son_quality_classification.png) |
+
+| construct | `lfcSE` | table | classification train | classification test | classification Δ | regression train | regression test | regression Δ |
+|---|---|---|---|---|---|---|---|---|
+| PACRGL Control | 4.2 | inside genes | 0.601 | 0.592 | 0.008 | 0.578 | -0.177 | 0.755 |
+| PACRGL Control | 4.2 | outside genes | 0.654 | 0.604 | 0.050 | 0.774 | -0.021 | 0.795 |
+| DDX51 | 1.5 | inside genes | 0.841 | 0.721 | 0.120 | 0.783 | 0.382 | 0.401 |
+| DDX51 | 1.5 | outside genes | 0.703 | 0.507 | 0.196 | 0.471 | 0.224 | 0.247 |
+| NBEAL2 | 1.5 | inside genes | 0.837 | 0.822 | 0.015 | 0.758 | 0.367 | 0.391 |
+| NBEAL2 | 1.5 | outside genes | 0.589 | 0.504 | 0.085 | 0.910 | 0.486 | 0.424 |
+| TONSL | 4.2 | inside genes | 0.672 | 0.610 | 0.062 | 0.960 | -0.143 | 1.103 |
+| TONSL | 4.2 | outside genes | 0.810 | 0.627 | 0.183 | 0.795 | 0.949 | -0.154 |
+| ALL | 1.5 | inside genes | 0.699 | 0.626 | 0.073 | 0.811 | 0.456 | 0.354 |
+| ALL | 1.5 | outside genes | 0.666 | 0.588 | 0.078 | 0.595 | 0.136 | 0.459 |
 
 ## What the classifier actually predicts
 

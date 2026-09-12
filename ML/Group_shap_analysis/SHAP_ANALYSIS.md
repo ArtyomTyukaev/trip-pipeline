@@ -80,6 +80,52 @@ An open circle is the training pool (`train`). A filled circle is the 15 % of ba
 |:---:|:---:|
 | ![model quality, regression](final_pictures/model_quality_regression.png) | ![model quality, classification](final_pictures/model_quality_classification.png) |
 
+**Regression, Spearman correlation**
+
+| dataset | experiment | intragenic train | intragenic test | intergenic train | intergenic test |
+|---|---|---|---|---|---|
+| `single_combined` | Regular | 0.917 | 0.833 | 0.767 | 0.710 |
+| `single_combined` | PCPA | 0.933 | 0.817 | 0.851 | 0.726 |
+| `intron_exp` | PACRGL Control | 0.865 | 0.738 | 0.599 | 0.515 |
+| `intron_exp` | TTC17 | 0.807 | 0.711 | 0.523 | 0.421 |
+| `intron_exp` | PACRGL | 0.831 | 0.720 | 0.486 | 0.445 |
+| `intron_exp` | DDX51 | 0.894 | 0.709 | 0.797 | 0.697 |
+| `intron_exp` | NBEAL2 | 0.856 | 0.724 | 0.452 | 0.395 |
+| `intron_exp` | TONSL | 0.888 | 0.788 | 0.529 | 0.462 |
+| `intron_exp` | USP21 | 0.849 | 0.742 | 0.498 | 0.420 |
+| `intron_exp` | KPTN | 0.875 | 0.750 | 0.629 | 0.548 |
+| `intron_splicing` | PACRGL Control | 0.614 | 0.363 | 0.590 | 0.382 |
+| `intron_splicing` | TTC17 | 0.599 | 0.230 | 0.548 | 0.373 |
+| `intron_splicing` | PACRGL | 0.578 | 0.377 | 0.575 | 0.321 |
+| `intron_splicing` | DDX51 | 0.624 | 0.322 | 0.565 | 0.253 |
+| `intron_splicing` | NBEAL2 | 0.547 | 0.172 | 0.545 | 0.193 |
+| `intron_splicing` | TONSL | 0.392 | 0.226 | 0.449 | 0.270 |
+| `intron_splicing` | USP21 | 0.682 | 0.270 | 0.510 | 0.310 |
+| `intron_splicing` | KPTN | 0.609 | 0.383 | 0.593 | 0.379 |
+
+**Classification, ROC AUC**
+
+| dataset | experiment | intragenic train | intragenic test | intergenic train | intergenic test |
+|---|---|---|---|---|---|
+| `single_combined` | Regular | 0.973 | 0.938 | 0.885 | 0.873 |
+| `single_combined` | PCPA | 0.966 | 0.967 | 0.921 | 0.898 |
+| `intron_exp` | PACRGL Control | 0.946 | 0.883 | 0.848 | 0.789 |
+| `intron_exp` | TTC17 | 0.929 | 0.898 | 0.794 | 0.736 |
+| `intron_exp` | PACRGL | 0.915 | 0.874 | 0.801 | 0.733 |
+| `intron_exp` | DDX51 | 0.920 | 0.883 | 0.906 | 0.868 |
+| `intron_exp` | NBEAL2 | 0.916 | 0.840 | 0.799 | 0.723 |
+| `intron_exp` | TONSL | 0.941 | 0.923 | 0.839 | 0.805 |
+| `intron_exp` | USP21 | 0.895 | 0.883 | 0.782 | 0.755 |
+| `intron_exp` | KPTN | 0.916 | 0.891 | 0.860 | 0.825 |
+| `intron_splicing` | PACRGL Control | 0.885 | 0.703 | 0.865 | 0.700 |
+| `intron_splicing` | TTC17 | 0.882 | 0.607 | 0.864 | 0.670 |
+| `intron_splicing` | PACRGL | 0.811 | 0.697 | 0.791 | 0.687 |
+| `intron_splicing` | DDX51 | 0.775 | 0.656 | 0.808 | 0.656 |
+| `intron_splicing` | NBEAL2 | 0.761 | 0.564 | 0.830 | 0.612 |
+| `intron_splicing` | TONSL | 0.825 | 0.621 | 0.682 | 0.629 |
+| `intron_splicing` | USP21 | 0.758 | 0.618 | 0.733 | 0.639 |
+| `intron_splicing` | KPTN | 0.751 | 0.652 | 0.845 | 0.650 |
+
 
 # 2. Heatmaps of group against experiment
 
