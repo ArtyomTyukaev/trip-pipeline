@@ -28,7 +28,7 @@ DDX51 and NBEAL2, inside MANE genes.
 
 ## Volcano
 
-![volcano](final_pictures/son_volcano.png)
+![volcano](final_pictures/son_volcano_all.png)
 
 ---
 
@@ -65,6 +65,12 @@ was chosen on the availability of data, not on the result.
 
 For PACRGL Control and TONSL the 4.2 threshold removes no rows at all. The data for these two
 constructs is just noisier.
+
+The volcano plot in the final section is the one place that does not follow this. It applies the same
+`lfcSE` cutoff of 1.5 to all four constructs, because panels built at different cutoffs cannot be
+compared: the smallest detectable effect scales with the cutoff. At the common cutoff the counts are
+226 and 204 selected drops for DDX51 and NBEAL2 against 18 and 23 for PACRGL Control and TONSL, so
+the number shown on those two panels is smaller than the class 1 count their models were trained on.
 
 ![AUC against the lfcSE filter](other_pictures/son_auc_vs_lfcse.png)
 
