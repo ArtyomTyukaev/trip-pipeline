@@ -30,6 +30,8 @@ DDX51 and NBEAL2, inside MANE genes.
 
 ![volcano](final_pictures/son_volcano_all.png)
 
+![volcano, adjusted P](final_pictures/son_volcano_all_padj.png)
+
 ---
 
 ## Thresholds used
