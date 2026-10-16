@@ -31,10 +31,11 @@ response to cycloheximide, which switches NMD off.
 
 | | |
 |---|---|
-| `HOW_IT_WORKS.md` | the pipeline: every column of the output table, the decision tree, the four stages, the toy test |
-| `scripts/` | the four stages, Python 3 standard library only |
+| `HOW_IT_WORKS.md` | the pipeline: every column of the output table, the decision tree, the stages, the toy test |
+| `scripts/` | the stages, Python 3 standard library only. 01–04 for every construct, 05–06 for IntronTRIP only |
 | `toy_test/` | an invented miniature genome with its inputs and outputs, run through the production scripts and compared against a hand-written expectation |
-| `SUMMARY.md` | the result: how the prediction compares with the measured CHX response, with figures |
-| `analysis/pics/`, `analysis/make_figures.py` | the figures and the script that draws them |
+| `single_combined/` | 5ss_noP and CPA_noP against CHX: `SUMMARY.md` with the figures, `analysis/` with the figure script |
+| `IntronTRIP/` | the eight IntronTRIP reporters, spliced and unspliced isoforms, against CHX: `SUMMARY.md` with the figures, `pics/`, `make_figures.py` |
 
-Start with `SUMMARY.md` for what was found, or `HOW_IT_WORKS.md` for how it was computed.
+Start with `single_combined/SUMMARY.md` or `IntronTRIP/SUMMARY.md` for what was found, or
+`HOW_IT_WORKS.md` for how it was computed.

@@ -20,11 +20,27 @@ Nothing about the inserted exon is hard-coded: its length and the position of th
 read from the N-run in exon_and_5arm_sequence.txt.
 
     python3 scripts/03_call_nmd.py [--root DIR] [--libs a,b]
+                                   [--insert PATH] [--out-suffix S] [--extra-junction N]
+
+All three optional flags default to absent, and with none of them the run is byte-identical to what
+it was. They exist for IntronTRIP, whose cassette carries its own intron and therefore reaches the
+mRNA in TWO forms of different length, one per library and one per form:
+
+    --insert PATH         the insert file to use instead of exon_and_5arm_sequence.txt. May contain
+                          `{lib}`, which is filled with the library name -- the eight IntronTRIP
+                          reporters carry a different donor exon each, so one run over all eight
+                          needs eight different inserts.
+    --out-suffix S        write work/nmd_<lib><S>.tsv instead of work/nmd_<lib>.tsv, so the spliced
+                          and the unspliced run of the same library do not overwrite each other.
+    --extra-junction N    the insert itself carries an exon-exon junction at offset N. True of the
+                          SPLICED IntronTRIP form only, where excising the reporter intron joins the
+                          two halves of the cassette exon and deposits an EJC there. It never
+                          becomes last_junction_pos, so it moves n_junc_downstream and nothing else.
 
 in   <root>/work/transcripts.tsv, <root>/work/barcodes_<lib>.tsv
-     <root>/genuine_barcodes/exon_and_5arm_sequence.txt
+     <root>/genuine_barcodes/exon_and_5arm_sequence.txt   (or --insert)
      <root>/genuine_barcodes/MANE.GRCh38.v1.0.refseq_rna.fna
-out  <root>/work/nmd_<lib>.tsv
+out  <root>/work/nmd_<lib>.tsv                            (or with --out-suffix)
 """
 
 import os
@@ -102,7 +118,7 @@ def segment(off, slot, bc_len, insert_len):
     return "insert_3p"
 
 
-def compute(t, tx_pos, seq, insert, slot, bc_len):
+def compute(t, tx_pos, seq, insert, slot, bc_len, extra_junction=None):
     """The one branch that reads sequence: an integration in an intron inside the CDS."""
     p = tx_pos
     L = len(insert)
@@ -116,7 +132,12 @@ def compute(t, tx_pos, seq, insert, slot, bc_len):
     coding_junc = t["junctions"][:t["cds_last_exon"] - 1] if t["cds_last_exon"] else []
     # the host junction at p is split in two: one at p, one at p + L. The cassette exon lies
     # inside the CDS (this branch only runs for cds_intron rows), so both are coding junctions.
-    new_junc = sorted([j if j < p else j + L for j in coding_junc] + [p])
+    # `extra_junction` adds one MORE, inside the insert itself. The IntronTRIP cassette carries its
+    # own intron, and in the spliced form excising it joins the two halves of the cassette exon,
+    # which deposits an EJC there as well. It can never be the LAST junction -- p + L is always
+    # further down -- so it moves n_junc_downstream and leaves the verdict alone.
+    inside = [p + extra_junction] if extra_junction is not None else []
+    new_junc = sorted([j if j < p else j + L for j in coding_junc] + [p] + inside)
     cds_start = t["cds_tx_start"]
     if cds_start >= p:                      # cannot happen for region == cds, kept for generality
         cds_start += L
@@ -186,26 +207,57 @@ def compute(t, tx_pos, seq, insert, slot, bc_len):
                  dist_gt_50=nmd, **common)
 
 
+def take_flag(argv, name, default=None):
+    """Pull `--name VALUE` out of argv and return (value, remaining argv).
+
+    Done here rather than in common.parse_args on purpose: stages 1, 2 and 4 must keep rejecting
+    unknown arguments instead of silently accepting three flags that mean nothing to them.
+    """
+    if name not in argv:
+        return default, argv
+    i = argv.index(name)
+    if i + 1 >= len(argv):
+        sys.exit("%s needs a value" % name)
+    return argv[i + 1], argv[:i] + argv[i + 2:]
+
+
 def main():
-    root, libs = parse_args()
+    argv = sys.argv[1:]
+    insert_arg, argv = take_flag(argv, "--insert")
+    out_suffix, argv = take_flag(argv, "--out-suffix", "")
+    extra_arg, argv = take_flag(argv, "--extra-junction")
+    extra_junction = int(extra_arg) if extra_arg is not None else None
+    root, libs = parse_args(argv)
+
     gb = os.path.join(root, "genuine_barcodes")
     work = os.path.join(root, "work")
+    insert_pattern = insert_arg or os.path.join(gb, "exon_and_5arm_sequence.txt")
 
-    insert_tpl, slot, bc_len = read_insert(os.path.join(gb, "exon_and_5arm_sequence.txt"))
     print("stage 3 -- the verdict   (root %s)" % root)
-    print("  insert: %d nt, barcode slot at %d-%d (%d nt), len %% 3 = %d"
-          % (len(insert_tpl), slot, slot + bc_len, bc_len, len(insert_tpl) % 3))
+    if extra_junction is not None:
+        print("  extra exon-exon junction inside the insert at offset %d" % extra_junction)
 
     txs = load_transcripts(os.path.join(work, "transcripts.tsv"))
     seqs = read_fasta(os.path.join(gb, "MANE.GRCh38.v1.0.refseq_rna.fna"))
 
     for spec in libs:
         lib = split_lib(spec)[0]
+        # A pattern without `{lib}` is returned unchanged by format(), so the single-insert case
+        # keeps working; with it, one run covers libraries whose inserts differ.
+        insert_path = insert_pattern.format(lib=lib)
+        insert_tpl, slot, bc_len = read_insert(insert_path)
+        if extra_junction is not None and not 0 < extra_junction < len(insert_tpl):
+            sys.exit("--extra-junction %d is outside the %d nt insert %s"
+                     % (extra_junction, len(insert_tpl), insert_path))
+        print("\n  %s insert: %s" % (lib, insert_path))
+        print("    %d nt, barcode slot at %d-%d (%d nt), len %% 3 = %d"
+              % (len(insert_tpl), slot, slot + bc_len, bc_len, len(insert_tpl) % 3))
+
         stat = Counter()
         src_stat = Counter()
         dists = []
         with open(os.path.join(work, "barcodes_%s.tsv" % lib)) as fh, \
-             open(os.path.join(work, "nmd_%s.tsv" % lib), "w") as out:
+             open(os.path.join(work, "nmd_%s%s.tsv" % (lib, out_suffix)), "w") as out:
             hdr = fh.readline().rstrip("\n").split("\t")
             out.write("\t".join(COLS) + "\n")
             for line in fh:
@@ -244,7 +296,8 @@ def main():
                         sys.exit("barcode %s is not plain ACGT -- a stop search over it is unsafe"
                                  % bc)
                     insert = insert_tpl[:slot] + bc + insert_tpl[slot + bc_len:]
-                    row = compute(t, int(b["tx_pos"]), seq, insert, slot, bc_len)
+                    row = compute(t, int(b["tx_pos"]), seq, insert, slot, bc_len,
+                                  extra_junction)
                     row["barcode"] = bc
                     src_stat[row["ptc_source"]] += 1
                     if row["dist_to_last_junction"] != "":
@@ -255,7 +308,7 @@ def main():
                     stat["nmd=%s" % row["nmd_expected"]] += 1
                 out.write("\t".join(str(row[c]) for c in COLS) + "\n")
 
-        print("\n  %s -> work/nmd_%s.tsv" % (lib, lib))
+        print("    -> work/nmd_%s%s.tsv" % (lib, out_suffix))
         for k in ("not_analysed", "utr", "last_exon", "internal_exon", "cds_intron",
                   "no_ptc_frameshift"):
             print("    %-14s %6d" % (k, stat[k]))

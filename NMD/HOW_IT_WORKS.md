@@ -4,7 +4,8 @@ What the scripts read, what comes out, and what every column of the result means
 real lines from real files.
 
 [the output table](#the-output-table) · [inputs](#inputs) · [the decision tree](#the-decision-tree) ·
-[the four stages](#the-four-stages) · [the toy test](#the-toy-test) · [checks](#what-this-was-checked-against) · [how to run](#how-to-run)
+[the four stages](#the-four-stages) · [the toy test](#the-toy-test) · [checks](#what-this-was-checked-against) · [how to run](#how-to-run) ·
+[IntronTRIP](#introntrip-two-insert-forms-and-two-more-stages)
 
 ---
 
@@ -152,6 +153,9 @@ two.
 
 Python 3, standard library only. Each takes `--root DIR` and `--libs a,b`, which is why the toy test
 drives the production scripts rather than a copy.
+
+> This section describes the 5ss_noP / CPA_noP path. IntronTRIP needs two more stages, see
+> [IntronTRIP](#introntrip-two-insert-forms-and-two-more-stages) at the end.
 
 **Stage 1 — `01_build_transcripts.py`.** MANE BED12 + FASTA → one row per transcript in **transcript
 coordinates**: exon lengths, junction positions (running sums of exon lengths), CDS bounds, and
@@ -355,4 +359,50 @@ Each stage prints a report with numbers and exits with code 1 if an invariant br
 means a change to the annotation needs a rerun from stage 1, a change to the insert only from stage 3,
 and a change to the measurement table only stage 4.
 
-See also: `toy_test/README.md`, and `SUMMARY.md` for the comparison against the CHX measurement.
+---
+
+## IntronTRIP: two insert forms and two more stages
+
+The IntronTRIP cassette carries its own intron, which may or may not be excised, so two inserts of
+different length reach the host mRNA: **spliced** (377 nt in all eight reporters, with an exon–exon
+junction at offset 181) and **unspliced** (503–886 nt, the intron sitting at that offset). Stage 3
+therefore runs twice, once per form, and two IntronTRIP-only stages follow:
+
+- **Stage 5 – `05_intron_factor.py`** joins the two verdicts by barcode into `nmd_expected` and the
+  four-level `nmd_factor` → `output/nmd_intron_<lib>.tsv`.
+- **Stage 6 – `06_join_intron_nmdi.py`** joins placement, the verdict of both forms and the CHX/EtOH
+  DESeq2 result by barcode → `output/nmd_nmdi_<lib>.tsv`. The DESeq2 table of IntronTRIP has three
+  fold changes instead of one: the spliced isoform, the unspliced isoform, and the splicing ×
+  treatment interaction, i.e. the change of the spliced/unspliced ratio.
+
+Stages 1 and 2 do not depend on the construct, so stage 1 is reused and stage 2 runs once per
+reporter. The root needs the layout above plus `genuine_barcodes/insert_<lib>_spliced.txt` and
+`insert_<lib>_unspliced.txt` (one line each) and `logFC/CHX_<lib>.txt`:
+
+```bash
+LIBS=A1,B1,B3-6,B3-9,C1,D1,E1,H1
+python3 scripts/02_map_barcodes.py     --root DIR --libs $LIBS
+python3 scripts/03_call_nmd.py         --root DIR --libs $LIBS \
+    --insert 'DIR/genuine_barcodes/insert_{lib}_spliced.txt' --out-suffix _spliced --extra-junction 181
+python3 scripts/03_call_nmd.py         --root DIR --libs $LIBS \
+    --insert 'DIR/genuine_barcodes/insert_{lib}_unspliced.txt' --out-suffix _unspliced
+python3 scripts/05_intron_factor.py    --root DIR --libs $LIBS   # -> DIR/output/nmd_intron_<lib>.tsv
+python3 scripts/06_join_intron_nmdi.py --root DIR --libs $LIBS   # -> DIR/output/nmd_nmdi_<lib>.tsv
+```
+
+The three flags of stage 3 are absent by default, so an ordinary run is byte-identical:
+`--insert` (may contain `{lib}`, because the eight reporters carry different inserts),
+`--out-suffix` (keeps the two forms apart) and `--extra-junction` (the spliced insert's own
+junction, which moves `n_junc_downstream` and nothing else).
+
+**The factor comes out binary, by design.** The two forms give the same verdict for every analysed
+barcode in all eight reporters, because the insert carries an in-frame stop in all three reading
+phases. The constructs were built to be equally NMD-sensitive spliced or not. On this construct
+`ptc_source` is always `insert_5p` and the 50-nt threshold decides no row.
+
+The comparison with the CHX measurement is in `IntronTRIP/SUMMARY.md`.
+
+---
+
+See also: `toy_test/README.md`, `single_combined/SUMMARY.md` (5ss_noP and CPA_noP against CHX) and
+`IntronTRIP/SUMMARY.md` (the eight IntronTRIP reporters against CHX).
